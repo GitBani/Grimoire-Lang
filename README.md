@@ -12,8 +12,7 @@ let [id]: [type] = [expression]; // new var, this is a comment
 - int
 - float
 - bool
-- char
-- string
+- str
 - array
 let arr: int[] = {12,3,4,5}
 
