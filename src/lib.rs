@@ -1,3 +1,5 @@
+use std::backtrace;
+
 pub mod lexer;
 
 pub struct Config {
@@ -20,21 +22,21 @@ impl Config {
     }
 }
 
-#[derive(Debug)]
-pub struct Token<'a, T> {
+#[derive(Debug, PartialEq, Eq)]
+pub struct Token {
     pub token_type: TokenType,
-    pub lexeme: &'a str,
+    pub lexeme: String,
     pub line: usize,
-    pub literal_value: Option<T>,
+    pub literal_value: Option<LiteralValue>,
 }
 
-impl<'a, T> Token<'a, T> {
+impl<'a> Token {
     pub fn new_literal(
         token_type: TokenType,
-        lexeme: &'a str,
+        lexeme: String,
         line: usize,
-        literal_value: T,
-    ) -> Token<T> {
+        literal_value: LiteralValue,
+    ) -> Token {
         Token {
             token_type,
             lexeme,
@@ -43,7 +45,7 @@ impl<'a, T> Token<'a, T> {
         }
     }
 
-    pub fn new_valueless(token_type: TokenType, lexeme: &'a str, line: usize) -> Token<T> {
+    pub fn new_valueless(token_type: TokenType, lexeme: String, line: usize) -> Token {
         Token {
             token_type,
             lexeme,
@@ -54,6 +56,28 @@ impl<'a, T> Token<'a, T> {
 }
 
 #[derive(Debug)]
+pub enum LiteralValue {
+    Int(i32),
+    Float(f64),
+    Bool(bool),
+    None,
+}
+
+impl PartialEq for LiteralValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (LiteralValue::Int(a), LiteralValue::Int(b)) => a == b,
+            (LiteralValue::Float(a), LiteralValue::Float(b)) => (a - b).abs() < f64::EPSILON,
+            (LiteralValue::Bool(a), LiteralValue::Bool(b)) => a == b,
+            (LiteralValue::None, LiteralValue::None) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for LiteralValue {}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum TokenType {
     // Punctuation
     LeftParen,
@@ -94,10 +118,9 @@ pub enum TokenType {
     CaretEquals,
     GreaterGreaterEquals,
     LessLessEquals,
-    TildeEquals,
     //  Equality and Inequality
     EqualsEquals,
-    NotEquals,
+    BangEquals,
     Greater,
     GreaterEquals,
     Less,
@@ -126,6 +149,7 @@ pub enum TokenType {
     Null,
     Identifier,
     Let,
+    As,
     If,
     ElseIf,
     Else,

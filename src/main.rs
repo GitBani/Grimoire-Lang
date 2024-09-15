@@ -16,5 +16,7 @@ fn main() {
     });
 
     let lexer = Lexer::new(&source);
-    // return token list from scanner and pass to parser for it to generate wasm
+    // create tokens and pass to parser
+    // create ast and pass to optimizations
+    // pass ast to code generator
 }
