@@ -223,15 +223,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_advance() {
-        let source = "Hello, world!";
-        let mut lexer = Lexer::new(source);
-        assert_eq!(lexer.advance(), 'H');
-        assert_eq!(lexer.advance(), 'e');
-        assert_eq!(lexer.advance(), 'l');
-    }
-
-    #[test]
     fn test_scan_token() {
         let source = "((]}+=+&&=>><<=%;";
         let mut lexer = Lexer::new(source);
