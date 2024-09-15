@@ -1,5 +1,3 @@
-use std::backtrace;
-
 pub mod lexer;
 
 pub struct Config {
