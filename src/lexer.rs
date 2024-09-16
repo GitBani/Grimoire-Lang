@@ -33,21 +33,6 @@ impl<'a> Lexer<'a> {
     fn scan_token(&mut self) {
         let c = self.advance();
 
-        // if c.is_whitespace() {
-        //     self.skip_whitespace();
-        //     return;
-        // }
-
-        // if c.is_alphabetic() {
-        //     self.scan_identifier_or_keyword();
-        //     return;
-        // }
-
-        // if c.is_numeric() {
-        //     self.scan_numeric();
-        //     return;
-        // }
-
         match c {
             '(' => self.push_token_valueless(TokenType::LeftParen),
             ')' => self.push_token_valueless(TokenType::RightParen),
@@ -176,7 +161,27 @@ impl<'a> Lexer<'a> {
 
             '~' => self.push_token_valueless(TokenType::Tilde),
 
-            _ => (), // error
+            _ => {
+                if c.is_whitespace() {
+                    if c == '\n' {
+                        self.line += 1;
+                    }
+                    self.skip_whitespace();
+                } else {
+                    //error
+                    ()
+                }
+
+                // if c.is_alphabetic() {
+                //     self.scan_identifier_or_keyword();
+                //     return;
+                // }
+
+                // if c.is_numeric() {
+                //     self.scan_numeric();
+                //     return;
+                // }
+            }
         }
 
         self.clear_buffer();
@@ -186,6 +191,21 @@ impl<'a> Lexer<'a> {
         let lexeme = self.buffer.iter().collect::<String>();
         self.tokens
             .push(Token::new_valueless(token_type, lexeme, self.line));
+    }
+
+    fn skip_whitespace(&mut self) {
+        if let Some(mut next_char) = self.source.peek() {
+            while (*next_char).is_whitespace() {
+                if *next_char == '\n' {
+                    self.line += 1;
+                }
+                self.advance();
+                match self.source.peek() {
+                    Some(c) => next_char = c,
+                    None => return,
+                }
+            }
+        }
     }
 
     fn is_identifier_char(c: char) -> bool {
@@ -224,7 +244,8 @@ mod tests {
 
     #[test]
     fn test_scan_token() {
-        let source = "((]}+=+&&=>><<=%;";
+        let source = "((]}+=+ 
+          &&=>>   <<=%;";
         let mut lexer = Lexer::new(source);
         let expected = vec![
             Token::new_valueless(TokenType::LeftParen, String::from("("), 1),
@@ -233,13 +254,13 @@ mod tests {
             Token::new_valueless(TokenType::RightBrace, String::from("}"), 1),
             Token::new_valueless(TokenType::PlusEquals, String::from("+="), 1),
             Token::new_valueless(TokenType::Plus, String::from("+"), 1),
-            Token::new_valueless(TokenType::Ampersand, String::from("&"), 1),
-            Token::new_valueless(TokenType::AmpersandEquals, String::from("&="), 1),
-            Token::new_valueless(TokenType::GreaterGreater, String::from(">>"), 1),
-            Token::new_valueless(TokenType::LessLessEquals, String::from("<<="), 1),
-            Token::new_valueless(TokenType::Percent, String::from("%"), 1),
-            Token::new_valueless(TokenType::SemiColon, String::from(";"), 1),
-            Token::new_valueless(TokenType::EOF, String::from(""), 1),
+            Token::new_valueless(TokenType::Ampersand, String::from("&"), 2),
+            Token::new_valueless(TokenType::AmpersandEquals, String::from("&="), 2),
+            Token::new_valueless(TokenType::GreaterGreater, String::from(">>"), 2),
+            Token::new_valueless(TokenType::LessLessEquals, String::from("<<="), 2),
+            Token::new_valueless(TokenType::Percent, String::from("%"), 2),
+            Token::new_valueless(TokenType::SemiColon, String::from(";"), 2),
+            Token::new_valueless(TokenType::EOF, String::from(""), 2),
         ];
         assert_eq!(*lexer.tokenize(), expected);
     }
