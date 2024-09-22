@@ -1,3 +1,4 @@
+use core::num;
 use std::{collections::HashMap, iter::Peekable, str::Chars};
 
 use crate::{LiteralValue, Token, TokenType};
@@ -249,6 +250,7 @@ impl<'a> Lexer<'a> {
             }
         }
 
+        // number being scanned is an int
         if self.source.peek() != Some(&'.') {
             let value = if *self.buffer.first().unwrap() == '-' {
                 -1
@@ -262,16 +264,18 @@ impl<'a> Lexer<'a> {
                 self.line,
                 LiteralValue::Int(value),
             ));
-        } else {
+        }
+        // number being scanned is a float
+        else {
             self.advance(); // consume the '.'
 
-            let mut value = value as f64;
-            let mut multiplier = 1.0;
+            let mut fractional_part = 0;
+            let mut num_decimals = 0;
             if let Some(mut next_char) = self.source.peek() {
                 // error if not at least 1 decimal digit
                 while next_char.is_numeric() {
-                    multiplier /= 10.0; // fix FPE
-                    value += next_char.to_digit(10).unwrap() as f64 * multiplier;
+                    num_decimals += 1;
+                    fractional_part = fractional_part * 10 + next_char.to_digit(10).unwrap();
 
                     self.advance();
                     match self.source.peek() {
@@ -284,10 +288,11 @@ impl<'a> Lexer<'a> {
                     -1.0
                 } else {
                     1.0
-                } * value;
+                } * (value as f64
+                    + fractional_part as f64 / 10_i32.pow(num_decimals) as f64);
                 let lexeme = self.buffer.iter().collect::<String>();
                 self.tokens.push(Token::new_literal(
-                    TokenType::IntLiteral,
+                    TokenType::FloatLiteral,
                     lexeme,
                     self.line,
                     LiteralValue::Float(value),
@@ -398,7 +403,8 @@ mod tests {
 
     #[test]
     fn test_numeric_tokens() {
-        let source = "99 88.8 106.12";
+        let source = "99 88.8 106.12
+        34291.123456";
         let mut lexer = Lexer::new(source);
         let expected = vec![
             Token::new_literal(
@@ -419,6 +425,13 @@ mod tests {
                 1,
                 LiteralValue::Float(106.12),
             ),
+            Token::new_literal(
+                TokenType::FloatLiteral,
+                String::from("34291.123456"),
+                2,
+                LiteralValue::Float(34291.123456),
+            ),
+            Token::new_valueless(TokenType::EOF, String::from(""), 2),
         ];
         assert_eq!(*lexer.tokenize(), expected);
     }

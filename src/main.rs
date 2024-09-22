@@ -17,6 +17,7 @@ fn main() {
 
     let mut lexer = Lexer::new(&source);
     dbg!(lexer.tokenize());
+
     // create tokens and pass to parser
     // create ast and pass to optimizations
     // pass ast to code generator

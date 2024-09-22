@@ -6,7 +6,7 @@ A OOP+Functional programming language
 let [id]: [type] = [expression]; // new var, this is a comment
 ```
 - immutable by default, can use `mut` to make it mutable
-- not nullable by default, can use `?` to make it nullable (todo reconsider)
+- not nullable by default, can use `?` to make it nullable
 
 # Types
 - int
