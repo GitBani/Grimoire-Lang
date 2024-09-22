@@ -46,12 +46,12 @@ while [condition] {
 ```
 # Functions
 ```
-def [name] ([var]: [type], ...) -> [return type] {
+def [name] ([var]: [type], ...): [return type] {
 	// function body
 }
 
 // lambdas
-([var]: [type], ...) -> [expression or block] 
+([var]: [type], ...): [type] -> [expression or block] 
 
 // function types:
 ([param type], ...) -> [return type]

@@ -1,4 +1,4 @@
-use std::{iter::Peekable, str::Chars};
+use std::{collections::HashMap, iter::Peekable, str::Chars};
 
 use crate::{Token, TokenType};
 
@@ -8,6 +8,7 @@ pub struct Lexer<'a> {
     line: usize,
     offset: usize,
     buffer: Vec<char>,
+    keyword_token_type: HashMap<String, TokenType>,
 }
 
 impl<'a> Lexer<'a> {
@@ -18,6 +19,7 @@ impl<'a> Lexer<'a> {
             line: 1,
             offset: 0,
             buffer: vec![],
+            keyword_token_type: Self::build_keyword_token_type(),
         }
     }
 
@@ -46,8 +48,15 @@ impl<'a> Lexer<'a> {
 
             // '"' => self.scan_string(),
             // '\'' => self.scan_char(),
+            '?' => {
+                if self.next_char_is('.') {
+                    self.push_token_valueless(TokenType::QuestionMarkDot);
+                } else {
+                    self.push_token_valueless(TokenType::QuestionMark);
+                }
+            }
             '=' => {
-                if self.is_next_char('=') {
+                if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::EqualsEquals);
                 } else {
                     self.push_token_valueless(TokenType::Equals);
@@ -55,14 +64,14 @@ impl<'a> Lexer<'a> {
             }
 
             '!' => {
-                if self.is_next_char('=') {
+                if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::BangEquals);
                 }
                 // else error
             }
 
             '+' => {
-                if self.is_next_char('=') {
+                if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::PlusEquals);
                 } else {
                     self.push_token_valueless(TokenType::Plus);
@@ -70,7 +79,7 @@ impl<'a> Lexer<'a> {
             }
 
             '-' => {
-                if self.is_next_char('=') {
+                if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::MinusEquals);
                 } else {
                     self.push_token_valueless(TokenType::Minus);
@@ -78,7 +87,7 @@ impl<'a> Lexer<'a> {
             }
 
             '*' => {
-                if self.is_next_char('=') {
+                if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::StarEquals);
                 } else {
                     self.push_token_valueless(TokenType::Star);
@@ -86,13 +95,13 @@ impl<'a> Lexer<'a> {
             }
 
             '/' => {
-                if self.is_next_char('/') {
+                if self.next_char_is('/') {
                     self.push_token_valueless(TokenType::SlashSlash);
                     // self.skip_comment();
-                } else if self.is_next_char('*') {
+                } else if self.next_char_is('*') {
                     self.push_token_valueless(TokenType::SlashStar);
                     // self.skip_multiline_comment();
-                } else if self.is_next_char('=') {
+                } else if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::SlashEquals);
                 } else {
                     self.push_token_valueless(TokenType::Star);
@@ -100,7 +109,7 @@ impl<'a> Lexer<'a> {
             }
 
             '%' => {
-                if self.is_next_char('=') {
+                if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::PercentEquals);
                 } else {
                     self.push_token_valueless(TokenType::Percent);
@@ -108,13 +117,13 @@ impl<'a> Lexer<'a> {
             }
 
             '>' => {
-                if self.is_next_char('>') {
-                    if self.is_next_char('=') {
+                if self.next_char_is('>') {
+                    if self.next_char_is('=') {
                         self.push_token_valueless(TokenType::GreaterGreaterEquals)
                     } else {
                         self.push_token_valueless(TokenType::GreaterGreater)
                     }
-                } else if self.is_next_char('=') {
+                } else if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::GreaterEquals);
                 } else {
                     self.push_token_valueless(TokenType::Greater);
@@ -122,13 +131,13 @@ impl<'a> Lexer<'a> {
             }
 
             '<' => {
-                if self.is_next_char('<') {
-                    if self.is_next_char('=') {
+                if self.next_char_is('<') {
+                    if self.next_char_is('=') {
                         self.push_token_valueless(TokenType::LessLessEquals)
                     } else {
                         self.push_token_valueless(TokenType::LessLess)
                     }
-                } else if self.is_next_char('=') {
+                } else if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::LessEquals);
                 } else {
                     self.push_token_valueless(TokenType::Less);
@@ -136,7 +145,7 @@ impl<'a> Lexer<'a> {
             }
 
             '&' => {
-                if self.is_next_char('=') {
+                if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::AmpersandEquals);
                 } else {
                     self.push_token_valueless(TokenType::Ampersand);
@@ -144,7 +153,7 @@ impl<'a> Lexer<'a> {
             }
 
             '|' => {
-                if self.is_next_char('=') {
+                if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::BarEquals);
                 } else {
                     self.push_token_valueless(TokenType::Bar);
@@ -152,7 +161,7 @@ impl<'a> Lexer<'a> {
             }
 
             '^' => {
-                if self.is_next_char('=') {
+                if self.next_char_is('=') {
                     self.push_token_valueless(TokenType::Caret);
                 } else {
                     self.push_token_valueless(TokenType::CaretEquals);
@@ -167,15 +176,12 @@ impl<'a> Lexer<'a> {
                         self.line += 1;
                     }
                     self.skip_whitespace();
+                } else if c.is_alphabetic() {
+                    self.scan_identifier_or_keyword();
                 } else {
                     //error
                     ()
                 }
-
-                // if c.is_alphabetic() {
-                //     self.scan_identifier_or_keyword();
-                //     return;
-                // }
 
                 // if c.is_numeric() {
                 //     self.scan_numeric();
@@ -193,6 +199,29 @@ impl<'a> Lexer<'a> {
             .push(Token::new_valueless(token_type, lexeme, self.line));
     }
 
+    fn scan_identifier_or_keyword(&mut self) {
+        if let Some(mut next_char) = self.source.peek() {
+            while Self::is_identifier_char(*next_char) {
+                self.advance();
+                match self.source.peek() {
+                    Some(c) => next_char = c,
+                    None => return,
+                }
+            }
+        }
+        let lexeme = self.buffer.iter().collect::<String>();
+        let token_type = match self.keyword_token_type.get(&lexeme) {
+            Some(keyword_token_type) => *keyword_token_type,
+            None => TokenType::Identifier,
+        };
+        self.tokens
+            .push(Token::new_valueless(token_type, lexeme, self.line));
+    }
+
+    fn is_identifier_char(c: char) -> bool {
+        return c.is_alphanumeric() || c == '_';
+    }
+
     fn skip_whitespace(&mut self) {
         if let Some(mut next_char) = self.source.peek() {
             while (*next_char).is_whitespace() {
@@ -208,11 +237,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn is_identifier_char(c: char) -> bool {
-        return c.is_alphanumeric() || c == '_';
-    }
-
-    fn is_next_char(&mut self, expected_char: char) -> bool {
+    fn next_char_is(&mut self, expected_char: char) -> bool {
         match self.source.peek() {
             Some(c) => {
                 if *c == expected_char {
@@ -235,6 +260,35 @@ impl<'a> Lexer<'a> {
 
     fn clear_buffer(&mut self) {
         self.buffer = vec![]
+    }
+
+    fn build_keyword_token_type() -> HashMap<String, TokenType> {
+        HashMap::from([
+            (String::from("and"), TokenType::And),
+            (String::from("or"), TokenType::Or),
+            (String::from("not"), TokenType::Not),
+            (String::from("in"), TokenType::In),
+            (String::from("true"), TokenType::True),
+            (String::from("false"), TokenType::False),
+            (String::from("int"), TokenType::IntType),
+            (String::from("float"), TokenType::FloatType),
+            (String::from("bool"), TokenType::BoolType),
+            (String::from("char"), TokenType::CharType),
+            (String::from("string"), TokenType::StringType),
+            (String::from("null"), TokenType::Null),
+            (String::from("let"), TokenType::Let),
+            (String::from("as"), TokenType::As),
+            (String::from("if"), TokenType::If),
+            (String::from("else"), TokenType::Else),
+            (String::from("while"), TokenType::While),
+            (String::from("for"), TokenType::For),
+            (String::from("def"), TokenType::Def),
+            (String::from("class"), TokenType::Class),
+            (String::from("interface"), TokenType::Interface),
+            (String::from("pub"), TokenType::Pub),
+            (String::from("self"), TokenType::SelfLower),
+            (String::from("Self"), TokenType::SelfUpper),
+        ])
     }
 }
 
