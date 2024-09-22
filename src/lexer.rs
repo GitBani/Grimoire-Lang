@@ -24,13 +24,19 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    pub fn tokenize(&mut self) -> &Vec<Token> {
+    pub fn get_tokens(&mut self) -> &Vec<Token> {
+        if self.tokens.len() == 0 {
+            self.tokenize();
+        }
+        &self.tokens
+    }
+
+    fn tokenize(&mut self) {
         while self.source.peek() != None {
             self.scan_token();
         }
 
         self.push_token_valueless(TokenType::EOF);
-        &self.tokens
     }
 
     fn scan_token(&mut self) {
@@ -400,7 +406,7 @@ mod tests {
             Token::new_valueless(TokenType::EOF, String::from(""), 2),
         ];
 
-        assert_eq!(*lexer.tokenize(), expected);
+        assert_eq!(*lexer.get_tokens(), expected);
     }
 
     #[test]
@@ -458,7 +464,16 @@ mod tests {
             Token::new_valueless(TokenType::EOF, String::from(""), 5),
         ];
 
-        assert_eq!(*lexer.tokenize(), expected);
+        let result = lexer.get_tokens();
+        for i in 0..expected.len() - 1 {
+            if expected[i] != result[i] {
+                dbg!(&expected[i]);
+                dbg!(&result[i]);
+                break;
+            }
+        }
+
+        assert_eq!(*lexer.get_tokens(), expected);
     }
 
     #[test]
@@ -495,6 +510,6 @@ mod tests {
             Token::new_valueless(TokenType::EOF, String::from(""), 2),
         ];
 
-        assert_eq!(*lexer.tokenize(), expected);
+        assert_eq!(*lexer.get_tokens(), expected);
     }
 }
