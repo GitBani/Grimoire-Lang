@@ -209,7 +209,7 @@ impl<'a> Lexer<'a> {
                 self.advance();
                 match self.source.peek() {
                     Some(c) => next_char = c,
-                    None => return,
+                    None => break,
                 }
             }
         }
@@ -379,9 +379,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_scan_token() {
+    fn test_operators() {
         let source = "((]}+=+ 
           &&=>>   <<=%;";
+
         let mut lexer = Lexer::new(source);
         let expected = vec![
             Token::new_valueless(TokenType::LeftParen, String::from("("), 1),
@@ -398,13 +399,73 @@ mod tests {
             Token::new_valueless(TokenType::SemiColon, String::from(";"), 2),
             Token::new_valueless(TokenType::EOF, String::from(""), 2),
         ];
+
         assert_eq!(*lexer.tokenize(), expected);
     }
 
     #[test]
-    fn test_numeric_tokens() {
+    fn test_keywords_and_identifiers() {
+        let source = "hello world let x as true else if null as false
+        pub in england
+        self as Self be your true self
+        float in int
+        take your time";
+
+        let mut lexer = Lexer::new(source);
+        let expected = vec![
+            Token::new_valueless(TokenType::Identifier, String::from("hello"), 1),
+            Token::new_valueless(TokenType::Identifier, String::from("world"), 1),
+            Token::new_valueless(TokenType::Let, String::from("let"), 1),
+            Token::new_valueless(TokenType::Identifier, String::from("x"), 1),
+            Token::new_valueless(TokenType::As, String::from("as"), 1),
+            Token::new_literal(
+                TokenType::True,
+                String::from("true"),
+                1,
+                LiteralValue::Bool(true),
+            ),
+            Token::new_valueless(TokenType::Else, String::from("else"), 1),
+            Token::new_valueless(TokenType::If, String::from("if"), 1),
+            Token::new_valueless(TokenType::Null, String::from("null"), 1),
+            Token::new_valueless(TokenType::As, String::from("as"), 1),
+            Token::new_literal(
+                TokenType::False,
+                String::from("false"),
+                1,
+                LiteralValue::Bool(false),
+            ),
+            Token::new_valueless(TokenType::Pub, String::from("pub"), 2),
+            Token::new_valueless(TokenType::In, String::from("in"), 2),
+            Token::new_valueless(TokenType::Identifier, String::from("england"), 2),
+            Token::new_valueless(TokenType::SelfLower, String::from("self"), 3),
+            Token::new_valueless(TokenType::As, String::from("as"), 3),
+            Token::new_valueless(TokenType::SelfUpper, String::from("Self"), 3),
+            Token::new_valueless(TokenType::Identifier, String::from("be"), 3),
+            Token::new_valueless(TokenType::Identifier, String::from("your"), 3),
+            Token::new_literal(
+                TokenType::True,
+                String::from("true"),
+                3,
+                LiteralValue::Bool(true),
+            ),
+            Token::new_valueless(TokenType::SelfLower, String::from("self"), 3),
+            Token::new_valueless(TokenType::FloatType, String::from("float"), 4),
+            Token::new_valueless(TokenType::In, String::from("in"), 4),
+            Token::new_valueless(TokenType::IntType, String::from("int"), 4),
+            Token::new_valueless(TokenType::Identifier, String::from("take"), 5),
+            Token::new_valueless(TokenType::Identifier, String::from("your"), 5),
+            Token::new_valueless(TokenType::Identifier, String::from("time"), 5),
+            Token::new_valueless(TokenType::EOF, String::from(""), 5),
+        ];
+
+        assert_eq!(*lexer.tokenize(), expected);
+    }
+
+    #[test]
+    fn test_numerics() {
         let source = "99 88.8 106.12
         34291.123456";
+
         let mut lexer = Lexer::new(source);
         let expected = vec![
             Token::new_literal(
@@ -433,6 +494,7 @@ mod tests {
             ),
             Token::new_valueless(TokenType::EOF, String::from(""), 2),
         ];
+
         assert_eq!(*lexer.tokenize(), expected);
     }
 }
