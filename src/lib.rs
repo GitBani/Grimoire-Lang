@@ -25,7 +25,7 @@ pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
     pub line: usize,
-    pub literal_value: Option<LiteralValue>,
+    pub literal_value: LiteralValue,
 }
 
 impl<'a> Token {
@@ -39,7 +39,7 @@ impl<'a> Token {
             token_type,
             lexeme,
             line,
-            literal_value: Some(literal_value),
+            literal_value: literal_value,
         }
     }
 
@@ -48,7 +48,7 @@ impl<'a> Token {
             token_type,
             lexeme,
             line,
-            literal_value: None,
+            literal_value: LiteralValue::None,
         }
     }
 }
@@ -58,6 +58,7 @@ pub enum LiteralValue {
     Int(i32),
     Float(f64),
     Bool(bool),
+    Char(char),
     None,
 }
 

@@ -15,7 +15,8 @@ fn main() {
         process::exit(1);
     });
 
-    let lexer = Lexer::new(&source);
+    let mut lexer = Lexer::new(&source);
+    dbg!(lexer.tokenize());
     // create tokens and pass to parser
     // create ast and pass to optimizations
     // pass ast to code generator

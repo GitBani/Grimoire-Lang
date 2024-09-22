@@ -1,6 +1,6 @@
 use std::{collections::HashMap, iter::Peekable, str::Chars};
 
-use crate::{Token, TokenType};
+use crate::{LiteralValue, Token, TokenType};
 
 pub struct Lexer<'a> {
     source: Peekable<Chars<'a>>,
@@ -49,14 +49,14 @@ impl<'a> Lexer<'a> {
             // '"' => self.scan_string(),
             // '\'' => self.scan_char(),
             '?' => {
-                if self.next_char_is('.') {
+                if self.next_char_equals('.') {
                     self.push_token_valueless(TokenType::QuestionMarkDot);
                 } else {
                     self.push_token_valueless(TokenType::QuestionMark);
                 }
             }
             '=' => {
-                if self.next_char_is('=') {
+                if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::EqualsEquals);
                 } else {
                     self.push_token_valueless(TokenType::Equals);
@@ -64,14 +64,14 @@ impl<'a> Lexer<'a> {
             }
 
             '!' => {
-                if self.next_char_is('=') {
+                if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::BangEquals);
                 }
                 // else error
             }
 
             '+' => {
-                if self.next_char_is('=') {
+                if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::PlusEquals);
                 } else {
                     self.push_token_valueless(TokenType::Plus);
@@ -79,15 +79,21 @@ impl<'a> Lexer<'a> {
             }
 
             '-' => {
-                if self.next_char_is('=') {
+                if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::MinusEquals);
-                } else {
-                    self.push_token_valueless(TokenType::Minus);
+                } else if self.next_char_equals('>') {
+                    self.push_token_valueless(TokenType::DashGreater);
+                } else if let Some(c) = self.source.peek() {
+                    if c.is_numeric() {
+                        self.scan_numeric();
+                    } else {
+                        self.push_token_valueless(TokenType::Minus);
+                    }
                 }
             }
 
             '*' => {
-                if self.next_char_is('=') {
+                if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::StarEquals);
                 } else {
                     self.push_token_valueless(TokenType::Star);
@@ -95,13 +101,13 @@ impl<'a> Lexer<'a> {
             }
 
             '/' => {
-                if self.next_char_is('/') {
+                if self.next_char_equals('/') {
                     self.push_token_valueless(TokenType::SlashSlash);
                     // self.skip_comment();
-                } else if self.next_char_is('*') {
+                } else if self.next_char_equals('*') {
                     self.push_token_valueless(TokenType::SlashStar);
                     // self.skip_multiline_comment();
-                } else if self.next_char_is('=') {
+                } else if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::SlashEquals);
                 } else {
                     self.push_token_valueless(TokenType::Star);
@@ -109,7 +115,7 @@ impl<'a> Lexer<'a> {
             }
 
             '%' => {
-                if self.next_char_is('=') {
+                if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::PercentEquals);
                 } else {
                     self.push_token_valueless(TokenType::Percent);
@@ -117,13 +123,13 @@ impl<'a> Lexer<'a> {
             }
 
             '>' => {
-                if self.next_char_is('>') {
-                    if self.next_char_is('=') {
+                if self.next_char_equals('>') {
+                    if self.next_char_equals('=') {
                         self.push_token_valueless(TokenType::GreaterGreaterEquals)
                     } else {
                         self.push_token_valueless(TokenType::GreaterGreater)
                     }
-                } else if self.next_char_is('=') {
+                } else if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::GreaterEquals);
                 } else {
                     self.push_token_valueless(TokenType::Greater);
@@ -131,13 +137,13 @@ impl<'a> Lexer<'a> {
             }
 
             '<' => {
-                if self.next_char_is('<') {
-                    if self.next_char_is('=') {
+                if self.next_char_equals('<') {
+                    if self.next_char_equals('=') {
                         self.push_token_valueless(TokenType::LessLessEquals)
                     } else {
                         self.push_token_valueless(TokenType::LessLess)
                     }
-                } else if self.next_char_is('=') {
+                } else if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::LessEquals);
                 } else {
                     self.push_token_valueless(TokenType::Less);
@@ -145,7 +151,7 @@ impl<'a> Lexer<'a> {
             }
 
             '&' => {
-                if self.next_char_is('=') {
+                if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::AmpersandEquals);
                 } else {
                     self.push_token_valueless(TokenType::Ampersand);
@@ -153,7 +159,7 @@ impl<'a> Lexer<'a> {
             }
 
             '|' => {
-                if self.next_char_is('=') {
+                if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::BarEquals);
                 } else {
                     self.push_token_valueless(TokenType::Bar);
@@ -161,7 +167,7 @@ impl<'a> Lexer<'a> {
             }
 
             '^' => {
-                if self.next_char_is('=') {
+                if self.next_char_equals('=') {
                     self.push_token_valueless(TokenType::Caret);
                 } else {
                     self.push_token_valueless(TokenType::CaretEquals);
@@ -178,15 +184,12 @@ impl<'a> Lexer<'a> {
                     self.skip_whitespace();
                 } else if c.is_alphabetic() {
                     self.scan_identifier_or_keyword();
+                } else if c.is_numeric() {
+                    self.scan_numeric();
                 } else {
                     //error
                     ()
                 }
-
-                // if c.is_numeric() {
-                //     self.scan_numeric();
-                //     return;
-                // }
             }
         }
 
@@ -209,25 +212,99 @@ impl<'a> Lexer<'a> {
                 }
             }
         }
+
         let lexeme = self.buffer.iter().collect::<String>();
         let token_type = match self.keyword_token_type.get(&lexeme) {
             Some(keyword_token_type) => *keyword_token_type,
             None => TokenType::Identifier,
         };
-        self.tokens
-            .push(Token::new_valueless(token_type, lexeme, self.line));
+
+        self.tokens.push(match token_type {
+            TokenType::True => {
+                Token::new_literal(token_type, lexeme, self.line, LiteralValue::Bool(true))
+            }
+            TokenType::False => {
+                Token::new_literal(token_type, lexeme, self.line, LiteralValue::Bool(false))
+            }
+            _ => Token::new_valueless(token_type, lexeme, self.line),
+        });
     }
 
     fn is_identifier_char(c: char) -> bool {
         return c.is_alphanumeric() || c == '_';
     }
 
+    fn scan_numeric(&mut self) {
+        // at this point, buffer either contains a single digit char or '-' and a digit char
+        let mut value = self.buffer.last().unwrap().to_digit(10).unwrap();
+        if let Some(mut next_char) = self.source.peek() {
+            while next_char.is_numeric() {
+                value = value * 10 + next_char.to_digit(10).unwrap();
+
+                self.advance();
+                match self.source.peek() {
+                    Some(c) => next_char = c,
+                    None => break,
+                }
+            }
+        }
+
+        if self.source.peek() != Some(&'.') {
+            let value = if *self.buffer.first().unwrap() == '-' {
+                -1
+            } else {
+                1
+            } * value as i32;
+            let lexeme = self.buffer.iter().collect::<String>();
+            self.tokens.push(Token::new_literal(
+                TokenType::IntLiteral,
+                lexeme,
+                self.line,
+                LiteralValue::Int(value),
+            ));
+        } else {
+            self.advance(); // consume the '.'
+
+            let mut value = value as f64;
+            let mut multiplier = 1.0;
+            if let Some(mut next_char) = self.source.peek() {
+                // error if not at least 1 decimal digit
+                while next_char.is_numeric() {
+                    multiplier /= 10.0; // fix FPE
+                    value += next_char.to_digit(10).unwrap() as f64 * multiplier;
+
+                    self.advance();
+                    match self.source.peek() {
+                        Some(c) => next_char = c,
+                        None => break,
+                    }
+                }
+
+                let value = if *self.buffer.first().unwrap() == '-' {
+                    -1.0
+                } else {
+                    1.0
+                } * value;
+                let lexeme = self.buffer.iter().collect::<String>();
+                self.tokens.push(Token::new_literal(
+                    TokenType::IntLiteral,
+                    lexeme,
+                    self.line,
+                    LiteralValue::Float(value),
+                ));
+            } else {
+                // error since no decimal digits after '.'
+            }
+        }
+    }
+
     fn skip_whitespace(&mut self) {
         if let Some(mut next_char) = self.source.peek() {
-            while (*next_char).is_whitespace() {
+            while next_char.is_whitespace() {
                 if *next_char == '\n' {
                     self.line += 1;
                 }
+
                 self.advance();
                 match self.source.peek() {
                     Some(c) => next_char = c,
@@ -237,7 +314,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn next_char_is(&mut self, expected_char: char) -> bool {
+    fn next_char_equals(&mut self, expected_char: char) -> bool {
         match self.source.peek() {
             Some(c) => {
                 if *c == expected_char {
@@ -315,6 +392,33 @@ mod tests {
             Token::new_valueless(TokenType::Percent, String::from("%"), 2),
             Token::new_valueless(TokenType::SemiColon, String::from(";"), 2),
             Token::new_valueless(TokenType::EOF, String::from(""), 2),
+        ];
+        assert_eq!(*lexer.tokenize(), expected);
+    }
+
+    #[test]
+    fn test_numeric_tokens() {
+        let source = "99 88.8 106.12";
+        let mut lexer = Lexer::new(source);
+        let expected = vec![
+            Token::new_literal(
+                TokenType::IntLiteral,
+                String::from("99"),
+                1,
+                LiteralValue::Int(99),
+            ),
+            Token::new_literal(
+                TokenType::FloatLiteral,
+                String::from("88.8"),
+                1,
+                LiteralValue::Float(88.8),
+            ),
+            Token::new_literal(
+                TokenType::FloatLiteral,
+                String::from("106.12"),
+                1,
+                LiteralValue::Float(106.12),
+            ),
         ];
         assert_eq!(*lexer.tokenize(), expected);
     }
