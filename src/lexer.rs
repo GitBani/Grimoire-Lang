@@ -713,7 +713,7 @@ mod tests {
     #[test]
     fn test_numerics() {
         let source = "99 -6543 9 0 -1234567
-        88.8 -106.12
+        88.8 -106.12 // The best Pokemon games are probably HG/SS but anything gen 3-5 is a valid choice
         34291.123456 -0.15325 100000000.3333 2345654.346765 -2345654.346765 8. -9. -0 -0.";
 
         let mut lexer = Lexer::new(source);
