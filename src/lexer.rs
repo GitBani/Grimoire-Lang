@@ -31,7 +31,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn tokenize(&mut self) {
-        while self.source.peek() != None {
+        while self.peek_next() != None {
             self.scan_token();
         }
 
@@ -52,7 +52,7 @@ impl<'a> Lexer<'a> {
             ';' => self.push_token_valueless(TokenType::SemiColon),
             '.' => self.push_token_valueless(TokenType::Dot),
 
-            // '"' => self.scan_string(),
+            '"' => self.scan_string(),
             '\'' => self.scan_char(),
 
             '?' => {
@@ -91,7 +91,7 @@ impl<'a> Lexer<'a> {
                     self.push_token_valueless(TokenType::MinusEquals);
                 } else if self.consume_if_next_char_equals('>') {
                     self.push_token_valueless(TokenType::DashGreater);
-                } else if let Some(c) = self.source.peek() {
+                } else if let Some(c) = self.peek_next() {
                     if c.is_numeric() {
                         self.advance();
                         self.scan_numeric();
@@ -202,23 +202,23 @@ impl<'a> Lexer<'a> {
     }
 
     fn push_token_valueless(&mut self, token_type: TokenType) {
-        let lexeme = self.buffer.iter().collect::<String>();
+        let lexeme: String = self.buffer.iter().collect();
         self.tokens
             .push(Token::new_valueless(token_type, lexeme, self.line));
     }
 
     fn scan_identifier_or_keyword(&mut self) {
-        if let Some(mut next_char) = self.source.peek() {
-            while Self::is_identifier_char(*next_char) {
+        if let Some(mut next_char) = self.peek_next() {
+            while Self::is_identifier_char(next_char) {
                 self.advance();
-                match self.source.peek() {
+                match self.peek_next() {
                     Some(c) => next_char = c,
                     None => break,
                 }
             }
         }
 
-        let lexeme = self.buffer.iter().collect::<String>();
+        let lexeme: String = self.buffer.iter().collect();
         let token_type = match self.keyword_token_type.get(&lexeme) {
             Some(keyword_token_type) => *keyword_token_type,
             None => TokenType::Identifier,
@@ -239,42 +239,45 @@ impl<'a> Lexer<'a> {
         return c.is_alphanumeric() || c == '_';
     }
 
-    // fn scan_string(&mut self) {
-    //     if let Some(mut next_char) = self.source.peek() {
-    //         while *next_char != '"' {
-    //             if *next_char == '\n' {
-    //                 self.process_newline();
-    //             }
-    //             self.advance();
-    //             match self.source.peek() {
-    //                 Some(c) => next_char = c,
-    //                 None => (), // todo error
-    //             }
-    //         }
-    //         self.advance(); // consume closing double quote
+    fn scan_string(&mut self) {
+        if let Some(mut next_char) = self.peek_next() {
+            while !self.consume_if_next_char_equals('"') {
+                if next_char == '\n' {
+                    self.process_newline();
+                }
 
-    //         let lexeme = self.buffer.iter().collect::<String>();
-    //         let value = lexeme.clone();
-    //         self.tokens.push(Token::new_literal(
-    //             TokenType::StringLiteral,
-    //             lexeme,
-    //             self.line,
-    //             LiteralValue::String(value),
-    //         ));
-    //     } else {
-    //         // todo error
-    //     }
-    // }
+                self.advance();
+                match self.peek_next() {
+                    Some(c) => next_char = c,
+                    None => todo!("Throw error for unterminated string"),
+                }
+            }
+
+            let lexeme: String = self.buffer.iter().collect();
+            let value = self.buffer[1..self.buffer.len() - 1] // cut off quotations
+                .to_vec()
+                .iter()
+                .collect();
+            self.tokens.push(Token::new_literal(
+                TokenType::StringLiteral,
+                lexeme,
+                self.line,
+                LiteralValue::String(value),
+            ));
+        } else {
+            todo!("Throw error for unterminated string");
+        }
+    }
 
     fn scan_char(&mut self) {
-        if let Some(_) = self.source.peek() {
+        if let Some(_) = self.peek_next() {
             let value = self.advance(); // note: this allows the char ''' (single quote w/o escaping (lowkey kinda goated?))
             if !self.consume_if_next_char_equals('\'') {
                 todo!("Throw error since char isn't terminated properly")
             }
-            let lexeme = self.buffer.iter().collect::<String>();
+            let lexeme: String = self.buffer.iter().collect();
             self.tokens.push(Token::new_literal(
-                TokenType::CharType,
+                TokenType::CharLiteral,
                 lexeme,
                 self.line,
                 LiteralValue::Char(value),
@@ -296,12 +299,12 @@ impl<'a> Lexer<'a> {
             .to_digit(10)
             .unwrap();
 
-        if let Some(mut next_char) = self.source.peek() {
+        if let Some(mut next_char) = self.peek_next() {
             while next_char.is_numeric() {
                 value = value * 10 + next_char.to_digit(10).unwrap();
 
                 self.advance();
-                match self.source.peek() {
+                match self.peek_next() {
                     Some(c) => next_char = c,
                     None => break,
                 }
@@ -316,7 +319,7 @@ impl<'a> Lexer<'a> {
                 value *= -1;
             }
 
-            let lexeme = self.buffer.iter().collect::<String>();
+            let lexeme: String = self.buffer.iter().collect();
             self.tokens.push(Token::new_literal(
                 TokenType::IntLiteral,
                 lexeme,
@@ -330,13 +333,13 @@ impl<'a> Lexer<'a> {
         // fractional part calculated as an int to avoid floating point error
         let mut fractional_part = 0;
         let mut num_decimals = 0;
-        if let Some(mut next_char) = self.source.peek() {
+        if let Some(mut next_char) = self.peek_next() {
             while next_char.is_numeric() {
                 num_decimals += 1;
                 fractional_part = fractional_part * 10 + next_char.to_digit(10).unwrap();
 
                 self.advance();
-                match self.source.peek() {
+                match self.peek_next() {
                     Some(c) => next_char = c,
                     None => break,
                 }
@@ -348,7 +351,7 @@ impl<'a> Lexer<'a> {
                 value *= -1.0;
             }
 
-            let lexeme = self.buffer.iter().collect::<String>();
+            let lexeme: String = self.buffer.iter().collect();
             self.tokens.push(Token::new_literal(
                 TokenType::FloatLiteral,
                 lexeme,
@@ -362,14 +365,14 @@ impl<'a> Lexer<'a> {
         if initial_char == '\n' {
             self.process_newline();
         }
-        if let Some(mut next_char) = self.source.peek() {
+        if let Some(mut next_char) = self.peek_next() {
             while next_char.is_whitespace() {
-                if *next_char == '\n' {
+                if next_char == '\n' {
                     self.process_newline();
                 }
 
                 self.advance();
-                match self.source.peek() {
+                match self.peek_next() {
                     Some(c) => next_char = c,
                     None => return,
                 }
@@ -378,9 +381,9 @@ impl<'a> Lexer<'a> {
     }
 
     fn consume_if_next_char_equals(&mut self, expected_char: char) -> bool {
-        match self.source.peek() {
+        match self.peek_next() {
             Some(c) => {
-                if *c == expected_char {
+                if c == expected_char {
                     self.advance();
                     true
                 } else {
@@ -404,6 +407,10 @@ impl<'a> Lexer<'a> {
         self.buffer.push(c);
         self.offset += 1;
         c
+    }
+
+    fn peek_next(&mut self) -> Option<char> {
+        return self.source.peek().copied();
     }
 
     fn clear_buffer(&mut self) {
@@ -472,60 +479,110 @@ mod tests {
     #[test]
     fn test_chars_and_strings() {
         let source = "'a' 'B' 'c' 'D'
-        '1' '2' '3' '4'";
+        '1' '2' '3' '4'
+        \"\" \"'static\" \"on one line
+        now on the other
+        and another, wow!\" \"888
+        777 64 \"
+        ";
 
         let mut lexer = Lexer::new(source);
         let expected = vec![
             Token::new_literal(
-                TokenType::CharType,
+                TokenType::CharLiteral,
                 String::from("'a'"),
                 1,
                 LiteralValue::Char('a'),
             ),
             Token::new_literal(
-                TokenType::CharType,
+                TokenType::CharLiteral,
                 String::from("'B'"),
                 1,
                 LiteralValue::Char('B'),
             ),
             Token::new_literal(
-                TokenType::CharType,
+                TokenType::CharLiteral,
                 String::from("'c'"),
                 1,
                 LiteralValue::Char('c'),
             ),
             Token::new_literal(
-                TokenType::CharType,
+                TokenType::CharLiteral,
                 String::from("'D'"),
                 1,
                 LiteralValue::Char('D'),
             ),
             Token::new_literal(
-                TokenType::CharType,
+                TokenType::CharLiteral,
                 String::from("'1'"),
                 2,
                 LiteralValue::Char('1'),
             ),
             Token::new_literal(
-                TokenType::CharType,
+                TokenType::CharLiteral,
                 String::from("'2'"),
                 2,
                 LiteralValue::Char('2'),
             ),
             Token::new_literal(
-                TokenType::CharType,
+                TokenType::CharLiteral,
                 String::from("'3'"),
                 2,
                 LiteralValue::Char('3'),
             ),
             Token::new_literal(
-                TokenType::CharType,
+                TokenType::CharLiteral,
                 String::from("'4'"),
                 2,
                 LiteralValue::Char('4'),
             ),
-            Token::new_valueless(TokenType::EOF, String::from(""), 2),
+            Token::new_literal(
+                TokenType::StringLiteral,
+                String::from("\"\""),
+                3,
+                LiteralValue::String(String::from("")),
+            ),
+            Token::new_literal(
+                TokenType::StringLiteral,
+                String::from("\"'static\""),
+                3,
+                LiteralValue::String(String::from("'static")),
+            ),
+            Token::new_literal(
+                TokenType::StringLiteral,
+                String::from(
+                    "\"on one line
+        now on the other
+        and another, wow!\"",
+                ),
+                5, // parsed as last line it's on, is this bad?
+                LiteralValue::String(String::from(
+                    "on one line
+        now on the other
+        and another, wow!",
+                )),
+            ),
+            Token::new_literal(
+                TokenType::StringLiteral,
+                String::from(
+                    "\"888
+        777 64 \"",
+                ),
+                6, // parsed as last line it's on, is this bad?
+                LiteralValue::String(String::from(
+                    "888
+        777 64 ",
+                )),
+            ),
+            Token::new_valueless(TokenType::EOF, String::from(""), 7),
         ];
+
+        for i in 0..lexer.get_tokens().len() {
+            if lexer.get_tokens()[i] != expected[i] {
+                dbg!(&lexer.get_tokens()[i]);
+                dbg!(&expected[i]);
+            }
+        }
 
         assert_eq!(*lexer.get_tokens(), expected);
     }

@@ -91,6 +91,7 @@ pub enum TokenType {
     BoolType,
     Caret,
     CaretEquals,
+    CharLiteral,
     CharType,
     Class,
     Colon,
