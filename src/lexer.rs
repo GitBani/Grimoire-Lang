@@ -73,8 +73,9 @@ impl<'a> Lexer<'a> {
             '!' => {
                 if self.consume_if_next_char_equals('=') {
                     self.push_token_valueless(TokenType::BangEquals);
+                } else {
+                    todo!("Throw error since `!` on it's own means nothing (this might change)");
                 }
-                // else error
             }
 
             '+' => {
@@ -192,8 +193,7 @@ impl<'a> Lexer<'a> {
                 } else if c.is_numeric() {
                     self.scan_numeric();
                 } else {
-                    //error
-                    ()
+                    todo!("Throw error for unrecognized char");
                 }
             }
         }
@@ -239,11 +239,38 @@ impl<'a> Lexer<'a> {
         return c.is_alphanumeric() || c == '_';
     }
 
+    // fn scan_string(&mut self) {
+    //     if let Some(mut next_char) = self.source.peek() {
+    //         while *next_char != '"' {
+    //             if *next_char == '\n' {
+    //                 self.process_newline();
+    //             }
+    //             self.advance();
+    //             match self.source.peek() {
+    //                 Some(c) => next_char = c,
+    //                 None => (), // todo error
+    //             }
+    //         }
+    //         self.advance(); // consume closing double quote
+
+    //         let lexeme = self.buffer.iter().collect::<String>();
+    //         let value = lexeme.clone();
+    //         self.tokens.push(Token::new_literal(
+    //             TokenType::StringLiteral,
+    //             lexeme,
+    //             self.line,
+    //             LiteralValue::String(value),
+    //         ));
+    //     } else {
+    //         // todo error
+    //     }
+    // }
+
     fn scan_char(&mut self) {
         if let Some(_) = self.source.peek() {
-            let value = self.advance();
+            let value = self.advance(); // note: this allows the char ''' (single quote w/o escaping (lowkey kinda goated?))
             if !self.consume_if_next_char_equals('\'') {
-                // error
+                todo!("Throw error since char isn't terminated properly")
             }
             let lexeme = self.buffer.iter().collect::<String>();
             self.tokens.push(Token::new_literal(
@@ -253,7 +280,7 @@ impl<'a> Lexer<'a> {
                 LiteralValue::Char(value),
             ))
         } else {
-            // error
+            todo!("Throw error since char is unterminated")
         }
     }
 
@@ -263,11 +290,12 @@ impl<'a> Lexer<'a> {
             .buffer
             .last()
             .expect(&format!(
-                "In scan_numeric at {}:{}, buffer is: {:?}",
+                "In scan_numeric at {}:{}, buffer is: {:#?} but expected it to contain a digit (or negative sign then digit)",
                 self.line, self.offset, self.buffer
             ))
             .to_digit(10)
             .unwrap();
+
         if let Some(mut next_char) = self.source.peek() {
             while next_char.is_numeric() {
                 value = value * 10 + next_char.to_digit(10).unwrap();
@@ -281,51 +309,10 @@ impl<'a> Lexer<'a> {
         }
 
         if self.consume_if_next_char_equals('.') {
-            // number being scanned is a float
-            // fractional part calculated as an int to avoid floating point error
-            let mut fractional_part = 0;
-            let mut num_decimals = 0;
-            if let Some(mut next_char) = self.source.peek() {
-                // error if not at least 1 decimal digit
-                while next_char.is_numeric() {
-                    num_decimals += 1;
-                    fractional_part = fractional_part * 10 + next_char.to_digit(10).unwrap();
-
-                    self.advance();
-                    match self.source.peek() {
-                        Some(c) => next_char = c,
-                        None => break,
-                    }
-                }
-
-                let mut value =
-                    value as f64 + fractional_part as f64 / 10_i32.pow(num_decimals) as f64;
-                if *self.buffer.first().expect(&format!(
-                    "In scan_numeric at {}:{}, buffer is: {:?}",
-                    self.line, self.offset, self.buffer
-                )) == '-'
-                {
-                    value *= -1.0;
-                }
-
-                let lexeme = self.buffer.iter().collect::<String>();
-                self.tokens.push(Token::new_literal(
-                    TokenType::FloatLiteral,
-                    lexeme,
-                    self.line,
-                    LiteralValue::Float(value),
-                ));
-            } else {
-                // error since no decimal digits after '.'
-            }
+            self.scan_fractional(value);
         } else {
-            // number being scanned is an int
             let mut value = value as i32;
-            if *self.buffer.first().expect(&format!(
-                "In scan_numeric at {}:{}, buffer is: {:?}",
-                self.line, self.offset, self.buffer
-            )) == '-'
-            {
+            if *self.buffer.first().unwrap() == '-' {
                 value *= -1;
             }
 
@@ -339,16 +326,46 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn scan_fractional(&mut self, integer_part: u32) {
+        // fractional part calculated as an int to avoid floating point error
+        let mut fractional_part = 0;
+        let mut num_decimals = 0;
+        if let Some(mut next_char) = self.source.peek() {
+            while next_char.is_numeric() {
+                num_decimals += 1;
+                fractional_part = fractional_part * 10 + next_char.to_digit(10).unwrap();
+
+                self.advance();
+                match self.source.peek() {
+                    Some(c) => next_char = c,
+                    None => break,
+                }
+            }
+
+            let mut value =
+                integer_part as f64 + fractional_part as f64 / 10_i32.pow(num_decimals) as f64;
+            if *self.buffer.first().unwrap() == '-' {
+                value *= -1.0;
+            }
+
+            let lexeme = self.buffer.iter().collect::<String>();
+            self.tokens.push(Token::new_literal(
+                TokenType::FloatLiteral,
+                lexeme,
+                self.line,
+                LiteralValue::Float(value),
+            ));
+        }
+    }
+
     fn skip_whitespace(&mut self, initial_char: char) {
         if initial_char == '\n' {
-            self.line += 1;
-            self.offset = 1;
+            self.process_newline();
         }
         if let Some(mut next_char) = self.source.peek() {
             while next_char.is_whitespace() {
                 if *next_char == '\n' {
-                    self.line += 1;
-                    self.offset = 1;
+                    self.process_newline();
                 }
 
                 self.advance();
@@ -374,8 +391,12 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn process_newline(&mut self) {
+        self.line += 1;
+        self.offset = 0;
+    }
+
     fn advance(&mut self) -> char {
-        // dbg!(self.source.next());
         let c = self.source.next().expect(&format!(
             "In advance at {}:{}, buffer is: {:?}",
             self.line, self.offset, self.buffer
@@ -580,7 +601,7 @@ mod tests {
     fn test_numerics() {
         let source = "99 -6543 9 0 -1234567
         88.8 -106.12
-        34291.123456 -0.15325 100000000.3333 2345654.346765 -2345654.346765
+        34291.123456 -0.15325 100000000.3333 2345654.346765 -2345654.346765 8. -9. -0 -0.
         ";
 
         let mut lexer = Lexer::new(source);
@@ -656,6 +677,30 @@ mod tests {
                 String::from("-2345654.346765"),
                 3,
                 LiteralValue::Float(-2345654.346765),
+            ),
+            Token::new_literal(
+                TokenType::FloatLiteral,
+                String::from("8."),
+                3,
+                LiteralValue::Float(8.),
+            ),
+            Token::new_literal(
+                TokenType::FloatLiteral,
+                String::from("-9."),
+                3,
+                LiteralValue::Float(-9.),
+            ),
+            Token::new_literal(
+                TokenType::IntLiteral,
+                String::from("-0"),
+                3,
+                LiteralValue::Int(-0),
+            ),
+            Token::new_literal(
+                TokenType::FloatLiteral,
+                String::from("-0."),
+                3,
+                LiteralValue::Float(-0.),
             ),
             Token::new_valueless(TokenType::EOF, String::from(""), 4),
         ];

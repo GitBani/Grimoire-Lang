@@ -19,7 +19,7 @@ let arr: int[] = {12,3,4,5}
 
 # Operators
 - arithmetic operators
-- `and`, `or`, `not`
+- `and`, `or`, `!`
 - equality & inequality operators
 - unary negation (numbers / bools)
 - bitwise operations

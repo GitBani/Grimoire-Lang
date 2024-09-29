@@ -59,6 +59,7 @@ pub enum LiteralValue {
     Float(f64),
     Bool(bool),
     Char(char),
+    String(String),
     None,
 }
 
@@ -69,6 +70,7 @@ impl PartialEq for LiteralValue {
             (LiteralValue::Float(a), LiteralValue::Float(b)) => (a - b).abs() < f64::EPSILON,
             (LiteralValue::Bool(a), LiteralValue::Bool(b)) => a == b,
             (LiteralValue::Char(a), LiteralValue::Char(b)) => a == b,
+            (LiteralValue::String(a), LiteralValue::String(b)) => a == b,
             (LiteralValue::None, LiteralValue::None) => true,
             _ => false,
         }
