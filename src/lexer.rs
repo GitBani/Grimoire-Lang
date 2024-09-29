@@ -326,6 +326,7 @@ impl<'a> Lexer<'a> {
         // fractional part calculated as an int to avoid floating point error
         let mut fractional_part = 0;
         let mut num_decimals = 0;
+
         if let Some(mut next_char) = self.peek_next() {
             while next_char.is_numeric() {
                 num_decimals += 1;
@@ -337,21 +338,21 @@ impl<'a> Lexer<'a> {
                     None => break,
                 }
             }
-
-            let mut value =
-                integer_part as f64 + fractional_part as f64 / 10_i32.pow(num_decimals) as f64;
-            if *self.buffer.first().unwrap() == '-' {
-                value *= -1.0;
-            }
-
-            let lexeme: String = self.buffer.iter().collect();
-            self.tokens.push(Token::new_literal(
-                TokenType::FloatLiteral,
-                lexeme,
-                self.line,
-                LiteralValue::Float(value),
-            ));
         }
+
+        let mut value =
+            integer_part as f64 + fractional_part as f64 / 10_i32.pow(num_decimals) as f64;
+        if *self.buffer.first().unwrap() == '-' {
+            value *= -1.0;
+        }
+
+        let lexeme: String = self.buffer.iter().collect();
+        self.tokens.push(Token::new_literal(
+            TokenType::FloatLiteral,
+            lexeme,
+            self.line,
+            LiteralValue::Float(value),
+        ));
     }
 
     fn skip_whitespace(&mut self, initial_char: char) {
@@ -373,7 +374,18 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn skip_comment(&mut self) {}
+    fn skip_comment(&mut self) {
+        if let Some(mut next_char) = self.peek_next() {
+            // let the next iteration of `scan_token` consume the newline so that `process_newline` is called
+            while next_char != '\n' {
+                self.advance();
+                match self.peek_next() {
+                    Some(c) => next_char = c,
+                    None => return,
+                }
+            }
+        }
+    }
 
     fn skip_multiline_comment(&mut self) {}
 
@@ -663,8 +675,7 @@ mod tests {
     fn test_numerics() {
         let source = "99 -6543 9 0 -1234567
         88.8 -106.12
-        34291.123456 -0.15325 100000000.3333 2345654.346765 -2345654.346765 8. -9. -0 -0.
-        ";
+        34291.123456 -0.15325 100000000.3333 2345654.346765 -2345654.346765 8. -9. -0 -0.";
 
         let mut lexer = Lexer::new(source);
         let expected = vec![
@@ -764,7 +775,7 @@ mod tests {
                 3,
                 LiteralValue::Float(-0.),
             ),
-            Token::new_valueless(TokenType::EOF, String::from(""), 4),
+            Token::new_valueless(TokenType::EOF, String::from(""), 3),
         ];
 
         assert_eq!(*lexer.get_tokens(), expected);
