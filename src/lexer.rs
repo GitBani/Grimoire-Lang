@@ -387,7 +387,37 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn skip_multiline_comment(&mut self) {}
+    fn skip_multiline_comment(&mut self) {
+        if let Some(mut next_char) = self.peek_next() {
+            let mut terminated = false;
+            while !terminated {
+                if next_char == '*' {
+                    self.advance();
+                    match self.peek_next() {
+                        Some('/') => {
+                            self.advance();
+                            terminated = true;
+                        }
+                        Some(c) => next_char = c,
+                        None => todo!("Throw error for unterminated multiline comment"),
+                    }
+                    continue;
+                }
+
+                if next_char == '\n' {
+                    self.process_newline();
+                }
+
+                self.advance();
+                match self.peek_next() {
+                    Some(c) => next_char = c,
+                    None => todo!("Throw error for unterminated multiline comment"),
+                }
+            }
+        } else {
+            todo!("Throw error for unterminated multiline comment");
+        }
+    }
 
     //-- Iteration tools ------------------------------------------------------------------------------------------------------------------------------------------
     fn push_token_valueless(&mut self, token_type: TokenType) {
@@ -401,10 +431,10 @@ impl<'a> Lexer<'a> {
         self.offset = 0;
     }
 
-    fn consume_if_next_char_equals(&mut self, expected_char: char) -> bool {
+    fn consume_if_next_char_equals(&mut self, expected: char) -> bool {
         match self.peek_next() {
             Some(c) => {
-                if c == expected_char {
+                if c == expected {
                     self.advance();
                     true
                 } else {
@@ -607,10 +637,18 @@ mod tests {
     #[test]
     fn test_keywords_and_identifiers() {
         let source = "hello world let x as true else if null as false
-        pub in england
+        pub /* hello */ in england
         self as Self be your true self
         float in int
-        take your time";
+        take your time
+        /**
+         * 
+         * 
+         * 
+         * 
+         * 
+         */
+        eof";
 
         let mut lexer = Lexer::new(source);
         let expected = vec![
@@ -656,7 +694,8 @@ mod tests {
             Token::new_valueless(TokenType::Identifier, String::from("take"), 5),
             Token::new_valueless(TokenType::Identifier, String::from("your"), 5),
             Token::new_valueless(TokenType::Identifier, String::from("time"), 5),
-            Token::new_valueless(TokenType::EOF, String::from(""), 5),
+            Token::new_valueless(TokenType::Identifier, String::from("eof"), 13),
+            Token::new_valueless(TokenType::EOF, String::from(""), 13),
         ];
 
         let result = lexer.get_tokens();
