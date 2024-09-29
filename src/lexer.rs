@@ -19,7 +19,7 @@ impl<'a> Lexer<'a> {
             line: 1,
             offset: 0,
             buffer: vec![],
-            keyword_token_type: Self::build_keyword_token_type(),
+            keyword_token_type: Self::build_keyword_token_type_map(),
         }
     }
 
@@ -111,15 +111,13 @@ impl<'a> Lexer<'a> {
 
             '/' => {
                 if self.consume_if_next_char_equals('/') {
-                    self.push_token_valueless(TokenType::SlashSlash);
-                    // self.skip_comment();
+                    self.skip_comment();
                 } else if self.consume_if_next_char_equals('*') {
-                    self.push_token_valueless(TokenType::SlashStar);
-                    // self.skip_multiline_comment();
+                    self.skip_multiline_comment();
                 } else if self.consume_if_next_char_equals('=') {
                     self.push_token_valueless(TokenType::SlashEquals);
                 } else {
-                    self.push_token_valueless(TokenType::Star);
+                    self.push_token_valueless(TokenType::Slash);
                 }
             }
 
@@ -201,12 +199,7 @@ impl<'a> Lexer<'a> {
         self.clear_buffer();
     }
 
-    fn push_token_valueless(&mut self, token_type: TokenType) {
-        let lexeme: String = self.buffer.iter().collect();
-        self.tokens
-            .push(Token::new_valueless(token_type, lexeme, self.line));
-    }
-
+    //-- Scanning helpers -----------------------------------------------------------------------------------------------------------------------------------------
     fn scan_identifier_or_keyword(&mut self) {
         if let Some(mut next_char) = self.peek_next() {
             while Self::is_identifier_char(next_char) {
@@ -380,6 +373,22 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    fn skip_comment(&mut self) {}
+
+    fn skip_multiline_comment(&mut self) {}
+
+    //-- Iteration tools ------------------------------------------------------------------------------------------------------------------------------------------
+    fn push_token_valueless(&mut self, token_type: TokenType) {
+        let lexeme: String = self.buffer.iter().collect();
+        self.tokens
+            .push(Token::new_valueless(token_type, lexeme, self.line));
+    }
+
+    fn process_newline(&mut self) {
+        self.line += 1;
+        self.offset = 0;
+    }
+
     fn consume_if_next_char_equals(&mut self, expected_char: char) -> bool {
         match self.peek_next() {
             Some(c) => {
@@ -392,11 +401,6 @@ impl<'a> Lexer<'a> {
             }
             None => false,
         }
-    }
-
-    fn process_newline(&mut self) {
-        self.line += 1;
-        self.offset = 0;
     }
 
     fn advance(&mut self) -> char {
@@ -417,7 +421,8 @@ impl<'a> Lexer<'a> {
         self.buffer = vec![]
     }
 
-    fn build_keyword_token_type() -> HashMap<String, TokenType> {
+    //-- Misc -----------------------------------------------------------------------------------------------------------------------------------------------------
+    fn build_keyword_token_type_map() -> HashMap<String, TokenType> {
         HashMap::from([
             (String::from("and"), TokenType::And),
             (String::from("or"), TokenType::Or),

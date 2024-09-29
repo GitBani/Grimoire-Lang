@@ -150,8 +150,6 @@ pub enum TokenType {
     SingleQuote,
     Slash,
     SlashEquals,
-    SlashSlash,
-    SlashStar,
     Star,
     StarEquals,
     StringLiteral,
