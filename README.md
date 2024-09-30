@@ -18,8 +18,7 @@ let [id]: [type] = [expression]; // new var, this is a comment
 let arr: int[] = {12,3,4,5}
 
 # Operators
-- arithmetic operators
-- `and`, `or`, `!`
+- arithmetic / boolean operators
 - equality & inequality operators
 - unary negation (numbers / bools)
 - bitwise operations

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, iter::Peekable, str::Chars};
 
-use crate::{LiteralValue, Token, TokenType};
+use crate::token::{LiteralValue, Token, TokenType};
 
 pub struct Lexer<'a> {
     source: Peekable<Chars<'a>>,
@@ -72,9 +72,9 @@ impl<'a> Lexer<'a> {
 
             '!' => {
                 if self.consume_if_next_char_equals('=') {
-                    self.push_token_valueless(TokenType::BangEquals);
+                    self.push_token_valueless(TokenType::NotEquals);
                 } else {
-                    todo!("Throw error since `!` on it's own means nothing (this might change)");
+                    self.push_token_valueless(TokenType::Not);
                 }
             }
 
@@ -211,8 +211,21 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        let lexeme: String = self.buffer.iter().collect();
+        let mut lexeme: String = self.buffer.iter().collect();
         let token_type = match self.keyword_token_type.get(&lexeme) {
+            Some(TokenType::In) => {
+                if let Some(token) = self.tokens.last() {
+                    if token.token_type == TokenType::Not {
+                        self.tokens.pop();
+                        lexeme = String::from("!in");
+                        TokenType::NotIn
+                    } else {
+                        TokenType::In
+                    }
+                } else {
+                    TokenType::In
+                }
+            }
             Some(keyword_token_type) => *keyword_token_type,
             None => TokenType::Identifier,
         };
@@ -468,7 +481,6 @@ impl<'a> Lexer<'a> {
         HashMap::from([
             (String::from("and"), TokenType::And),
             (String::from("or"), TokenType::Or),
-            (String::from("not"), TokenType::Not),
             (String::from("in"), TokenType::In),
             (String::from("true"), TokenType::True),
             (String::from("false"), TokenType::False),
@@ -637,7 +649,7 @@ mod tests {
     #[test]
     fn test_keywords_and_identifiers() {
         let source = "hello world let x as true else if null as false
-        pub /* hello */ in england
+        pub /* hello */ in england and !in france
         self as Self be your true self
         float in int
         take your time
@@ -676,6 +688,9 @@ mod tests {
             Token::new_valueless(TokenType::Pub, String::from("pub"), 2),
             Token::new_valueless(TokenType::In, String::from("in"), 2),
             Token::new_valueless(TokenType::Identifier, String::from("england"), 2),
+            Token::new_valueless(TokenType::And, String::from("and"), 2),
+            Token::new_valueless(TokenType::NotIn, String::from("!in"), 2),
+            Token::new_valueless(TokenType::Identifier, String::from("france"), 2),
             Token::new_valueless(TokenType::SelfLower, String::from("self"), 3),
             Token::new_valueless(TokenType::As, String::from("as"), 3),
             Token::new_valueless(TokenType::SelfUpper, String::from("Self"), 3),
