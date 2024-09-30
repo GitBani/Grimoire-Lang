@@ -60,10 +60,11 @@ impl Eq for LiteralValue {}
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum TokenType {
     Ampersand,
+    AmpersandAmpersand,
     AmpersandEquals,
-    And,
     As,
     Bar,
+    BarBar,
     BarEquals,
     BoolType,
     Caret,
@@ -111,7 +112,6 @@ pub enum TokenType {
     NotEquals,
     NotIn,
     Null,
-    Or,
     Percent,
     PercentEquals,
     Plus,

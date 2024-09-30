@@ -158,7 +158,9 @@ impl<'a> Lexer<'a> {
             }
 
             '&' => {
-                if self.consume_if_next_char_equals('=') {
+                if self.consume_if_next_char_equals('&') {
+                    self.push_token_valueless(TokenType::AmpersandAmpersand);
+                } else if self.consume_if_next_char_equals('=') {
                     self.push_token_valueless(TokenType::AmpersandEquals);
                 } else {
                     self.push_token_valueless(TokenType::Ampersand);
@@ -166,7 +168,9 @@ impl<'a> Lexer<'a> {
             }
 
             '|' => {
-                if self.consume_if_next_char_equals('=') {
+                if self.consume_if_next_char_equals('|') {
+                    self.push_token_valueless(TokenType::BarBar);
+                } else if self.consume_if_next_char_equals('=') {
                     self.push_token_valueless(TokenType::BarEquals);
                 } else {
                     self.push_token_valueless(TokenType::Bar);
@@ -213,6 +217,7 @@ impl<'a> Lexer<'a> {
 
         let mut lexeme: String = self.buffer.iter().collect();
         let token_type = match self.keyword_token_type.get(&lexeme) {
+            // handle `!in` keyword
             Some(TokenType::In) => {
                 if let Some(token) = self.tokens.last() {
                     if token.token_type == TokenType::Not {
@@ -479,8 +484,6 @@ impl<'a> Lexer<'a> {
     //-- Misc -----------------------------------------------------------------------------------------------------------------------------------------------------
     fn build_keyword_token_type_map() -> HashMap<String, TokenType> {
         HashMap::from([
-            (String::from("and"), TokenType::And),
-            (String::from("or"), TokenType::Or),
             (String::from("in"), TokenType::In),
             (String::from("true"), TokenType::True),
             (String::from("false"), TokenType::False),
@@ -513,7 +516,7 @@ mod tests {
     #[test]
     fn test_operators() {
         let source = "((]}+=+ 
-          &&=>>   <<=%;";
+          &&&=>>   <<=%;";
 
         let mut lexer = Lexer::new(source);
         let expected = vec![
@@ -523,7 +526,7 @@ mod tests {
             Token::new_valueless(TokenType::RightBrace, String::from("}"), 1),
             Token::new_valueless(TokenType::PlusEquals, String::from("+="), 1),
             Token::new_valueless(TokenType::Plus, String::from("+"), 1),
-            Token::new_valueless(TokenType::Ampersand, String::from("&"), 2),
+            Token::new_valueless(TokenType::AmpersandAmpersand, String::from("&&"), 2),
             Token::new_valueless(TokenType::AmpersandEquals, String::from("&="), 2),
             Token::new_valueless(TokenType::GreaterGreater, String::from(">>"), 2),
             Token::new_valueless(TokenType::LessLessEquals, String::from("<<="), 2),
@@ -649,7 +652,7 @@ mod tests {
     #[test]
     fn test_keywords_and_identifiers() {
         let source = "hello world let x as true else if null as false
-        pub /* hello */ in england and !in france
+        pub /* hello */ in england && !in france
         self as Self be your true self
         float in int
         take your time
@@ -688,7 +691,7 @@ mod tests {
             Token::new_valueless(TokenType::Pub, String::from("pub"), 2),
             Token::new_valueless(TokenType::In, String::from("in"), 2),
             Token::new_valueless(TokenType::Identifier, String::from("england"), 2),
-            Token::new_valueless(TokenType::And, String::from("and"), 2),
+            Token::new_valueless(TokenType::AmpersandAmpersand, String::from("&&"), 2),
             Token::new_valueless(TokenType::NotIn, String::from("!in"), 2),
             Token::new_valueless(TokenType::Identifier, String::from("france"), 2),
             Token::new_valueless(TokenType::SelfLower, String::from("self"), 3),
