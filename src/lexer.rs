@@ -215,22 +215,8 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        let mut lexeme: String = self.buffer.iter().collect();
+        let lexeme: String = self.buffer.iter().collect();
         let token_type = match self.keyword_token_type.get(&lexeme) {
-            // handle `!in` keyword
-            Some(TokenType::In) => {
-                if let Some(token) = self.tokens.last() {
-                    if token.token_type == TokenType::Not {
-                        self.tokens.pop();
-                        lexeme = String::from("!in");
-                        TokenType::NotIn
-                    } else {
-                        TokenType::In
-                    }
-                } else {
-                    TokenType::In
-                }
-            }
             Some(keyword_token_type) => *keyword_token_type,
             None => TokenType::Identifier,
         };
@@ -692,7 +678,8 @@ mod tests {
             Token::new_valueless(TokenType::In, String::from("in"), 2),
             Token::new_valueless(TokenType::Identifier, String::from("england"), 2),
             Token::new_valueless(TokenType::AmpersandAmpersand, String::from("&&"), 2),
-            Token::new_valueless(TokenType::NotIn, String::from("!in"), 2),
+            Token::new_valueless(TokenType::Not, String::from("!"), 2),
+            Token::new_valueless(TokenType::In, String::from("in"), 2),
             Token::new_valueless(TokenType::Identifier, String::from("france"), 2),
             Token::new_valueless(TokenType::SelfLower, String::from("self"), 3),
             Token::new_valueless(TokenType::As, String::from("as"), 3),

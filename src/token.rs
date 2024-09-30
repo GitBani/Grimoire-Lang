@@ -110,7 +110,6 @@ pub enum TokenType {
     MinusEquals,
     Not,
     NotEquals,
-    NotIn,
     Null,
     Percent,
     PercentEquals,
