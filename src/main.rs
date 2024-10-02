@@ -16,7 +16,7 @@ fn main() {
     });
 
     let mut lexer = Lexer::new(&source);
-    dbg!(lexer.get_tokens());
+    dbg!(&lexer.get_tokens());
 
     // create tokens and pass to parser
     // create ast and pass to optimizations

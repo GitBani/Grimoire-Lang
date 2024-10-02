@@ -3,6 +3,7 @@ pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
     pub line: usize,
+    pub position: usize,
     pub literal_value: LiteralValue,
 }
 
@@ -11,21 +12,29 @@ impl<'a> Token {
         token_type: TokenType,
         lexeme: String,
         line: usize,
+        position: usize,
         literal_value: LiteralValue,
     ) -> Token {
         Token {
             token_type,
             lexeme,
             line,
+            position,
             literal_value: literal_value,
         }
     }
 
-    pub fn new_valueless(token_type: TokenType, lexeme: String, line: usize) -> Token {
+    pub fn new_valueless(
+        token_type: TokenType,
+        lexeme: String,
+        line: usize,
+        position: usize,
+    ) -> Token {
         Token {
             token_type,
             lexeme,
             line,
+            position,
             literal_value: LiteralValue::None,
         }
     }
