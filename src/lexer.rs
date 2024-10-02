@@ -40,9 +40,13 @@ impl<'a> Lexer<'a> {
     }
 
     fn scan_token(&mut self) {
-        let c = self.advance();
+        let just_consumed = self.advance();
 
-        match c {
+        match just_consumed {
+            c if c.is_whitespace() => self.skip_whitespace(just_consumed),
+            c if is_identifier_beginning(c) => self.scan_identifier_or_keyword(),
+            c if c.is_numeric() => self.scan_numeric(),
+
             '(' => self.push_valueless_token(TokenType::LeftParen),
             ')' => self.push_valueless_token(TokenType::RightParen),
             '{' => self.push_valueless_token(TokenType::LeftBrace),
@@ -189,21 +193,11 @@ impl<'a> Lexer<'a> {
 
             '~' => self.push_valueless_token(TokenType::Tilde),
 
-            _ => {
-                if c.is_whitespace() {
-                    self.skip_whitespace(c);
-                } else if c.is_alphabetic() || c == '_' {
-                    self.scan_identifier_or_keyword();
-                } else if c.is_numeric() {
-                    self.scan_numeric();
-                } else {
-                    errors::report_syntax_error(
-                        &format!("Unrecognized char: `{c}`"),
-                        self.line,
-                        self.offset,
-                    );
-                }
-            }
+            _ => errors::report_syntax_error(
+                &format!("Unrecognized char: `{just_consumed}`"),
+                self.line,
+                self.offset,
+            ),
         }
 
         self.clear_buffer();
@@ -212,7 +206,7 @@ impl<'a> Lexer<'a> {
     //-- Scanning helpers -----------------------------------------------------------------------------------------------------------------------------------------
     fn scan_identifier_or_keyword(&mut self) {
         if let Some(mut next_char) = self.peek_next() {
-            while Self::is_identifier_char(next_char) {
+            while is_identifier_char(next_char) {
                 self.advance();
                 match self.peek_next() {
                     Some(c) => next_char = c,
@@ -247,10 +241,6 @@ impl<'a> Lexer<'a> {
         });
     }
 
-    fn is_identifier_char(c: char) -> bool {
-        return c.is_alphanumeric() || c == '_';
-    }
-
     fn scan_string(&mut self) {
         let starting_line = self.line;
         let starting_column = self.offset + 1;
@@ -265,11 +255,14 @@ impl<'a> Lexer<'a> {
 
                 match self.peek_next() {
                     Some(c) => next_char = c,
-                    None => errors::report_syntax_error(
-                        "Unterminated string",
-                        starting_line,
-                        starting_column,
-                    ),
+                    None => {
+                        errors::report_syntax_error(
+                            "Unterminated string",
+                            starting_line,
+                            starting_column,
+                        );
+                        return;
+                    }
                 }
             }
 
@@ -360,14 +353,11 @@ impl<'a> Lexer<'a> {
 
     fn skip_whitespace(&mut self, initial_char: char) {
         if initial_char == '\n' {
-            println!("Reached on line {} col {}", self.line, self.offset);
             self.process_newline();
         }
         if let Some(mut next_char) = self.peek_next() {
             while next_char.is_whitespace() {
-                dbg!(next_char);
                 if next_char == '\n' {
-                    println!("Inner reached on line {} col {}", self.line, self.offset);
                     self.consume_newline();
                 } else {
                     self.advance();
@@ -534,6 +524,14 @@ impl<'a> Lexer<'a> {
             (String::from("Self"), TokenType::SelfUpper),
         ])
     }
+}
+
+fn is_identifier_char(c: char) -> bool {
+    return c.is_alphanumeric() || c == '_';
+}
+
+fn is_identifier_beginning(c: char) -> bool {
+    return c.is_alphabetic() || c == '_';
 }
 
 // #[cfg(test)]
