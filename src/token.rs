@@ -3,7 +3,7 @@ pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
     pub line: usize,
-    pub position: usize,
+    pub column: usize,
     pub literal_value: LiteralValue,
 }
 
@@ -12,14 +12,14 @@ impl<'a> Token {
         token_type: TokenType,
         lexeme: String,
         line: usize,
-        position: usize,
+        column: usize,
         literal_value: LiteralValue,
     ) -> Token {
         Token {
             token_type,
             lexeme,
             line,
-            position,
+            column,
             literal_value: literal_value,
         }
     }
@@ -28,13 +28,13 @@ impl<'a> Token {
         token_type: TokenType,
         lexeme: String,
         line: usize,
-        position: usize,
+        column: usize,
     ) -> Token {
         Token {
             token_type,
             lexeme,
             line,
-            position,
+            column,
             literal_value: LiteralValue::None,
         }
     }

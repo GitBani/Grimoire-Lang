@@ -216,7 +216,7 @@ impl<'a> Lexer<'a> {
         }
 
         let lexeme: String = self.buffer.iter().collect();
-        let position = self.offset - lexeme.len() + 1;
+        let column = self.offset - lexeme.len() + 1;
         let token_type = match self.keyword_token_type.get(&lexeme) {
             Some(keyword_token_type) => *keyword_token_type,
             None => TokenType::Identifier,
@@ -227,17 +227,17 @@ impl<'a> Lexer<'a> {
                 token_type,
                 lexeme,
                 self.line,
-                position,
+                column,
                 LiteralValue::Bool(true),
             ),
             TokenType::False => Token::new_literal(
                 token_type,
                 lexeme,
                 self.line,
-                position,
+                column,
                 LiteralValue::Bool(false),
             ),
-            _ => Token::new_valueless(token_type, lexeme, self.line, position),
+            _ => Token::new_valueless(token_type, lexeme, self.line, column),
         });
     }
 
@@ -351,8 +351,8 @@ impl<'a> Lexer<'a> {
         self.push_valued_token(TokenType::FloatLiteral, LiteralValue::Float(value));
     }
 
-    fn skip_whitespace(&mut self, initial_char: char) {
-        if initial_char == '\n' {
+    fn skip_whitespace(&mut self, just_consumed: char) {
+        if just_consumed == '\n' {
             self.process_newline();
         }
         if let Some(mut next_char) = self.peek_next() {
