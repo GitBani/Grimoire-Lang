@@ -549,7 +549,9 @@ mod tests {
     #[test]
     fn test_operators() {
         let source = "((]}+=+
-          &&&=>>   <<=%;";
+          &&&=>>   <<=%;
+          ?.?!=!
+          ";
 
         let mut lexer = Lexer::new(source);
         let expected = vec![
@@ -565,7 +567,11 @@ mod tests {
             Token::new_valueless(TokenType::LessLessEquals, String::from("<<="), 2, 20),
             Token::new_valueless(TokenType::Percent, String::from("%"), 2, 23),
             Token::new_valueless(TokenType::SemiColon, String::from(";"), 2, 24),
-            Token::new_valueless(TokenType::EOF, String::from(""), 2, 25),
+            Token::new_valueless(TokenType::QuestionMarkDot, String::from("?."), 3, 11),
+            Token::new_valueless(TokenType::QuestionMark, String::from("?"), 3, 13),
+            Token::new_valueless(TokenType::NotEquals, String::from("!="), 3, 14),
+            Token::new_valueless(TokenType::Not, String::from("!"), 3, 16),
+            Token::new_valueless(TokenType::EOF, String::from(""), 4, 11),
         ];
 
         test_utils::assert_vec_eq(lexer.get_tokens(), &expected);
