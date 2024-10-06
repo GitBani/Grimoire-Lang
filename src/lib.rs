@@ -1,5 +1,6 @@
 // utilities
 pub mod errors;
+pub mod test_utils;
 
 // compiler phases
 pub mod lexer;

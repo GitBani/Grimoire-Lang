@@ -243,7 +243,7 @@ impl<'a> Lexer<'a> {
 
     fn scan_string(&mut self) {
         let starting_line = self.line;
-        let starting_column = self.offset + 1;
+        let starting_column = self.offset;
 
         if let Some(mut next_char) = self.peek_next() {
             while !self.consume_if_next_char_equals('"') {
@@ -266,11 +266,18 @@ impl<'a> Lexer<'a> {
                 }
             }
 
+            let lexeme: String = self.buffer.iter().collect();
             let value = self.buffer[1..self.buffer.len() - 1] // cut off quotations
                 .to_vec()
                 .iter()
                 .collect();
-            self.push_valued_token(TokenType::StringLiteral, LiteralValue::String(value));
+            self.tokens.push(Token::new_literal(
+                TokenType::StringLiteral,
+                lexeme,
+                starting_line,
+                starting_column,
+                LiteralValue::String(value),
+            ));
         } else {
             errors::report_syntax_error("Unterminated string", starting_line, starting_column);
         }
@@ -534,333 +541,339 @@ fn is_identifier_beginning(c: char) -> bool {
     return c.is_alphabetic() || c == '_';
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils;
 
-//     #[test]
-//     fn test_operators() {
-//         let source = "((]}+=+
-//           &&&=>>   <<=%;";
+    #[test]
+    fn test_operators() {
+        let source = "((]}+=+
+          &&&=>>   <<=%;";
 
-//         let mut lexer = Lexer::new(source);
-//         let expected = vec![
-//             Token::new_valueless(TokenType::LeftParen, String::from("("), 1),
-//             Token::new_valueless(TokenType::LeftParen, String::from("("), 1),
-//             Token::new_valueless(TokenType::RightBracket, String::from("]"), 1),
-//             Token::new_valueless(TokenType::RightBrace, String::from("}"), 1),
-//             Token::new_valueless(TokenType::PlusEquals, String::from("+="), 1),
-//             Token::new_valueless(TokenType::Plus, String::from("+"), 1),
-//             Token::new_valueless(TokenType::AmpersandAmpersand, String::from("&&"), 2),
-//             Token::new_valueless(TokenType::AmpersandEquals, String::from("&="), 2),
-//             Token::new_valueless(TokenType::GreaterGreater, String::from(">>"), 2),
-//             Token::new_valueless(TokenType::LessLessEquals, String::from("<<="), 2),
-//             Token::new_valueless(TokenType::Percent, String::from("%"), 2),
-//             Token::new_valueless(TokenType::SemiColon, String::from(";"), 2),
-//             Token::new_valueless(TokenType::EOF, String::from(""), 2),
-//         ];
+        let mut lexer = Lexer::new(source);
+        let expected = vec![
+            Token::new_valueless(TokenType::LeftParen, String::from("("), 1, 1),
+            Token::new_valueless(TokenType::LeftParen, String::from("("), 1, 2),
+            Token::new_valueless(TokenType::RightBracket, String::from("]"), 1, 3),
+            Token::new_valueless(TokenType::RightBrace, String::from("}"), 1, 4),
+            Token::new_valueless(TokenType::PlusEquals, String::from("+="), 1, 5),
+            Token::new_valueless(TokenType::Plus, String::from("+"), 1, 7),
+            Token::new_valueless(TokenType::AmpersandAmpersand, String::from("&&"), 2, 11),
+            Token::new_valueless(TokenType::AmpersandEquals, String::from("&="), 2, 13),
+            Token::new_valueless(TokenType::GreaterGreater, String::from(">>"), 2, 15),
+            Token::new_valueless(TokenType::LessLessEquals, String::from("<<="), 2, 20),
+            Token::new_valueless(TokenType::Percent, String::from("%"), 2, 23),
+            Token::new_valueless(TokenType::SemiColon, String::from(";"), 2, 24),
+            Token::new_valueless(TokenType::EOF, String::from(""), 2, 25),
+        ];
 
-//         assert_eq!(*lexer.get_tokens(), expected);
-//     }
+        test_utils::assert_vec_eq(lexer.get_tokens(), &expected);
+    }
 
-//     #[test]
-//     fn test_chars_and_strings() {
-//         let source = "'a' 'B' 'c' 'D'
-//         '1' '2' '3' '4'
-//         \"\" \"'static\" \"on one line
-//         now on the other
-//         and another, wow!\" \"888
-//         777 64 \"
-//         ";
+    #[test]
+    fn test_chars_and_strings() {
+        let source = "'a' 'B' 'c' 'D'
+        '1' '2' '3' '4'
+        \"\" \"'static\" \"on one line
+        now on the other
+        and another, wow!\" \"888
+        777 64 \"
+        ";
 
-//         let mut lexer = Lexer::new(source);
-//         let expected = vec![
-//             Token::new_literal(
-//                 TokenType::CharLiteral,
-//                 String::from("'a'"),
-//                 1,
-//                 LiteralValue::Char('a'),
-//             ),
-//             Token::new_literal(
-//                 TokenType::CharLiteral,
-//                 String::from("'B'"),
-//                 1,
-//                 LiteralValue::Char('B'),
-//             ),
-//             Token::new_literal(
-//                 TokenType::CharLiteral,
-//                 String::from("'c'"),
-//                 1,
-//                 LiteralValue::Char('c'),
-//             ),
-//             Token::new_literal(
-//                 TokenType::CharLiteral,
-//                 String::from("'D'"),
-//                 1,
-//                 LiteralValue::Char('D'),
-//             ),
-//             Token::new_literal(
-//                 TokenType::CharLiteral,
-//                 String::from("'1'"),
-//                 2,
-//                 LiteralValue::Char('1'),
-//             ),
-//             Token::new_literal(
-//                 TokenType::CharLiteral,
-//                 String::from("'2'"),
-//                 2,
-//                 LiteralValue::Char('2'),
-//             ),
-//             Token::new_literal(
-//                 TokenType::CharLiteral,
-//                 String::from("'3'"),
-//                 2,
-//                 LiteralValue::Char('3'),
-//             ),
-//             Token::new_literal(
-//                 TokenType::CharLiteral,
-//                 String::from("'4'"),
-//                 2,
-//                 LiteralValue::Char('4'),
-//             ),
-//             Token::new_literal(
-//                 TokenType::StringLiteral,
-//                 String::from("\"\""),
-//                 3,
-//                 LiteralValue::String(String::from("")),
-//             ),
-//             Token::new_literal(
-//                 TokenType::StringLiteral,
-//                 String::from("\"'static\""),
-//                 3,
-//                 LiteralValue::String(String::from("'static")),
-//             ),
-//             Token::new_literal(
-//                 TokenType::StringLiteral,
-//                 String::from(
-//                     "\"on one line
-//         now on the other
-//         and another, wow!\"",
-//                 ),
-//                 5, // parsed as last line it's on, is this bad?
-//                 LiteralValue::String(String::from(
-//                     "on one line
-//         now on the other
-//         and another, wow!",
-//                 )),
-//             ),
-//             Token::new_literal(
-//                 TokenType::StringLiteral,
-//                 String::from(
-//                     "\"888
-//         777 64 \"",
-//                 ),
-//                 6, // parsed as last line it's on, is this bad?
-//                 LiteralValue::String(String::from(
-//                     "888
-//         777 64 ",
-//                 )),
-//             ),
-//             Token::new_valueless(TokenType::EOF, String::from(""), 7),
-//         ];
+        let mut lexer = Lexer::new(source);
+        let expected = vec![
+            Token::new_literal(
+                TokenType::CharLiteral,
+                String::from("'a'"),
+                1,
+                1,
+                LiteralValue::Char('a'),
+            ),
+            Token::new_literal(
+                TokenType::CharLiteral,
+                String::from("'B'"),
+                1,
+                5,
+                LiteralValue::Char('B'),
+            ),
+            Token::new_literal(
+                TokenType::CharLiteral,
+                String::from("'c'"),
+                1,
+                9,
+                LiteralValue::Char('c'),
+            ),
+            Token::new_literal(
+                TokenType::CharLiteral,
+                String::from("'D'"),
+                1,
+                13,
+                LiteralValue::Char('D'),
+            ),
+            Token::new_literal(
+                TokenType::CharLiteral,
+                String::from("'1'"),
+                2,
+                9,
+                LiteralValue::Char('1'),
+            ),
+            Token::new_literal(
+                TokenType::CharLiteral,
+                String::from("'2'"),
+                2,
+                13,
+                LiteralValue::Char('2'),
+            ),
+            Token::new_literal(
+                TokenType::CharLiteral,
+                String::from("'3'"),
+                2,
+                17,
+                LiteralValue::Char('3'),
+            ),
+            Token::new_literal(
+                TokenType::CharLiteral,
+                String::from("'4'"),
+                2,
+                21,
+                LiteralValue::Char('4'),
+            ),
+            Token::new_literal(
+                TokenType::StringLiteral,
+                String::from("\"\""),
+                3,
+                9,
+                LiteralValue::String(String::from("")),
+            ),
+            Token::new_literal(
+                TokenType::StringLiteral,
+                String::from("\"'static\""),
+                3,
+                12,
+                LiteralValue::String(String::from("'static")),
+            ),
+            Token::new_literal(
+                TokenType::StringLiteral,
+                String::from(
+                    "\"on one line
+        now on the other
+        and another, wow!\"",
+                ),
+                3,
+                22,
+                LiteralValue::String(String::from(
+                    "on one line
+        now on the other
+        and another, wow!",
+                )),
+            ),
+            Token::new_literal(
+                TokenType::StringLiteral,
+                String::from(
+                    "\"888
+        777 64 \"",
+                ),
+                5,
+                28,
+                LiteralValue::String(String::from(
+                    "888
+        777 64 ",
+                )),
+            ),
+            Token::new_valueless(TokenType::EOF, String::from(""), 7, 9),
+        ];
 
-//         for i in 0..lexer.get_tokens().len() {
-//             if lexer.get_tokens()[i] != expected[i] {
-//                 dbg!(&lexer.get_tokens()[i]);
-//                 dbg!(&expected[i]);
-//             }
-//         }
+        test_utils::assert_vec_eq(lexer.get_tokens(), &expected);
+    }
 
-//         assert_eq!(*lexer.get_tokens(), expected);
-//     }
+    // #[test]
+    // fn test_keywords_and_identifiers() {
+    //     let source = "hello world let x as true else if null as false
+    //     pub /* hello */ in england && !in france
+    //     self as Self be your true self
+    //     float in int
+    //     take your time
+    //     /**
+    //      *
+    //      *
+    //      *
+    //      *
+    //      *
+    //      */
+    //     eof";
 
-//     #[test]
-//     fn test_keywords_and_identifiers() {
-//         let source = "hello world let x as true else if null as false
-//         pub /* hello */ in england && !in france
-//         self as Self be your true self
-//         float in int
-//         take your time
-//         /**
-//          *
-//          *
-//          *
-//          *
-//          *
-//          */
-//         eof";
+    //     let mut lexer = Lexer::new(source);
+    //     let expected = vec![
+    //         Token::new_valueless(TokenType::Identifier, String::from("hello"), 1),
+    //         Token::new_valueless(TokenType::Identifier, String::from("world"), 1),
+    //         Token::new_valueless(TokenType::Let, String::from("let"), 1),
+    //         Token::new_valueless(TokenType::Identifier, String::from("x"), 1),
+    //         Token::new_valueless(TokenType::As, String::from("as"), 1),
+    //         Token::new_literal(
+    //             TokenType::True,
+    //             String::from("true"),
+    //             1,
+    //             LiteralValue::Bool(true),
+    //         ),
+    //         Token::new_valueless(TokenType::Else, String::from("else"), 1),
+    //         Token::new_valueless(TokenType::If, String::from("if"), 1),
+    //         Token::new_valueless(TokenType::Null, String::from("null"), 1),
+    //         Token::new_valueless(TokenType::As, String::from("as"), 1),
+    //         Token::new_literal(
+    //             TokenType::False,
+    //             String::from("false"),
+    //             1,
+    //             LiteralValue::Bool(false),
+    //         ),
+    //         Token::new_valueless(TokenType::Pub, String::from("pub"), 2),
+    //         Token::new_valueless(TokenType::In, String::from("in"), 2),
+    //         Token::new_valueless(TokenType::Identifier, String::from("england"), 2),
+    //         Token::new_valueless(TokenType::AmpersandAmpersand, String::from("&&"), 2),
+    //         Token::new_valueless(TokenType::Not, String::from("!"), 2),
+    //         Token::new_valueless(TokenType::In, String::from("in"), 2),
+    //         Token::new_valueless(TokenType::Identifier, String::from("france"), 2),
+    //         Token::new_valueless(TokenType::SelfLower, String::from("self"), 3),
+    //         Token::new_valueless(TokenType::As, String::from("as"), 3),
+    //         Token::new_valueless(TokenType::SelfUpper, String::from("Self"), 3),
+    //         Token::new_valueless(TokenType::Identifier, String::from("be"), 3),
+    //         Token::new_valueless(TokenType::Identifier, String::from("your"), 3),
+    //         Token::new_literal(
+    //             TokenType::True,
+    //             String::from("true"),
+    //             3,
+    //             LiteralValue::Bool(true),
+    //         ),
+    //         Token::new_valueless(TokenType::SelfLower, String::from("self"), 3),
+    //         Token::new_valueless(TokenType::FloatType, String::from("float"), 4),
+    //         Token::new_valueless(TokenType::In, String::from("in"), 4),
+    //         Token::new_valueless(TokenType::IntType, String::from("int"), 4),
+    //         Token::new_valueless(TokenType::Identifier, String::from("take"), 5),
+    //         Token::new_valueless(TokenType::Identifier, String::from("your"), 5),
+    //         Token::new_valueless(TokenType::Identifier, String::from("time"), 5),
+    //         Token::new_valueless(TokenType::Identifier, String::from("eof"), 13),
+    //         Token::new_valueless(TokenType::EOF, String::from(""), 13),
+    //     ];
 
-//         let mut lexer = Lexer::new(source);
-//         let expected = vec![
-//             Token::new_valueless(TokenType::Identifier, String::from("hello"), 1),
-//             Token::new_valueless(TokenType::Identifier, String::from("world"), 1),
-//             Token::new_valueless(TokenType::Let, String::from("let"), 1),
-//             Token::new_valueless(TokenType::Identifier, String::from("x"), 1),
-//             Token::new_valueless(TokenType::As, String::from("as"), 1),
-//             Token::new_literal(
-//                 TokenType::True,
-//                 String::from("true"),
-//                 1,
-//                 LiteralValue::Bool(true),
-//             ),
-//             Token::new_valueless(TokenType::Else, String::from("else"), 1),
-//             Token::new_valueless(TokenType::If, String::from("if"), 1),
-//             Token::new_valueless(TokenType::Null, String::from("null"), 1),
-//             Token::new_valueless(TokenType::As, String::from("as"), 1),
-//             Token::new_literal(
-//                 TokenType::False,
-//                 String::from("false"),
-//                 1,
-//                 LiteralValue::Bool(false),
-//             ),
-//             Token::new_valueless(TokenType::Pub, String::from("pub"), 2),
-//             Token::new_valueless(TokenType::In, String::from("in"), 2),
-//             Token::new_valueless(TokenType::Identifier, String::from("england"), 2),
-//             Token::new_valueless(TokenType::AmpersandAmpersand, String::from("&&"), 2),
-//             Token::new_valueless(TokenType::Not, String::from("!"), 2),
-//             Token::new_valueless(TokenType::In, String::from("in"), 2),
-//             Token::new_valueless(TokenType::Identifier, String::from("france"), 2),
-//             Token::new_valueless(TokenType::SelfLower, String::from("self"), 3),
-//             Token::new_valueless(TokenType::As, String::from("as"), 3),
-//             Token::new_valueless(TokenType::SelfUpper, String::from("Self"), 3),
-//             Token::new_valueless(TokenType::Identifier, String::from("be"), 3),
-//             Token::new_valueless(TokenType::Identifier, String::from("your"), 3),
-//             Token::new_literal(
-//                 TokenType::True,
-//                 String::from("true"),
-//                 3,
-//                 LiteralValue::Bool(true),
-//             ),
-//             Token::new_valueless(TokenType::SelfLower, String::from("self"), 3),
-//             Token::new_valueless(TokenType::FloatType, String::from("float"), 4),
-//             Token::new_valueless(TokenType::In, String::from("in"), 4),
-//             Token::new_valueless(TokenType::IntType, String::from("int"), 4),
-//             Token::new_valueless(TokenType::Identifier, String::from("take"), 5),
-//             Token::new_valueless(TokenType::Identifier, String::from("your"), 5),
-//             Token::new_valueless(TokenType::Identifier, String::from("time"), 5),
-//             Token::new_valueless(TokenType::Identifier, String::from("eof"), 13),
-//             Token::new_valueless(TokenType::EOF, String::from(""), 13),
-//         ];
+    //     let result = lexer.get_tokens();
+    //     for i in 0..expected.len() - 1 {
+    //         if expected[i] != result[i] {
+    //             dbg!(&expected[i]);
+    //             dbg!(&result[i]);
+    //             break;
+    //         }
+    //     }
 
-//         let result = lexer.get_tokens();
-//         for i in 0..expected.len() - 1 {
-//             if expected[i] != result[i] {
-//                 dbg!(&expected[i]);
-//                 dbg!(&result[i]);
-//                 break;
-//             }
-//         }
+    //     assert_eq!(*lexer.get_tokens(), expected);
+    // }
 
-//         assert_eq!(*lexer.get_tokens(), expected);
-//     }
+    // #[test]
+    // fn test_numerics() {
+    //     let source = "99 -6543 9 0 -1234567
+    //     88.8 -106.12 // The best Pokemon games are probably HG/SS but anything gen 3-5 is a valid choice
+    //     34291.123456 -0.15325 100000000.3333 2345654.346765 -2345654.346765 8. -9. -0 -0.";
 
-//     #[test]
-//     fn test_numerics() {
-//         let source = "99 -6543 9 0 -1234567
-//         88.8 -106.12 // The best Pokemon games are probably HG/SS but anything gen 3-5 is a valid choice
-//         34291.123456 -0.15325 100000000.3333 2345654.346765 -2345654.346765 8. -9. -0 -0.";
+    //     let mut lexer = Lexer::new(source);
+    //     let expected = vec![
+    //         Token::new_literal(
+    //             TokenType::IntLiteral,
+    //             String::from("99"),
+    //             1,
+    //             LiteralValue::Int(99),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::IntLiteral,
+    //             String::from("-6543"),
+    //             1,
+    //             LiteralValue::Int(-6543),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::IntLiteral,
+    //             String::from("9"),
+    //             1,
+    //             LiteralValue::Int(9),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::IntLiteral,
+    //             String::from("0"),
+    //             1,
+    //             LiteralValue::Int(0),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::IntLiteral,
+    //             String::from("-1234567"),
+    //             1,
+    //             LiteralValue::Int(-1234567),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::FloatLiteral,
+    //             String::from("88.8"),
+    //             2,
+    //             LiteralValue::Float(88.8),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::FloatLiteral,
+    //             String::from("-106.12"),
+    //             2,
+    //             LiteralValue::Float(-106.12),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::FloatLiteral,
+    //             String::from("34291.123456"),
+    //             3,
+    //             LiteralValue::Float(34291.123456),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::FloatLiteral,
+    //             String::from("-0.15325"),
+    //             3,
+    //             LiteralValue::Float(-0.15325),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::FloatLiteral,
+    //             String::from("100000000.3333"),
+    //             3,
+    //             LiteralValue::Float(100000000.3333),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::FloatLiteral,
+    //             String::from("2345654.346765"),
+    //             3,
+    //             LiteralValue::Float(2345654.346765),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::FloatLiteral,
+    //             String::from("-2345654.346765"),
+    //             3,
+    //             LiteralValue::Float(-2345654.346765),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::FloatLiteral,
+    //             String::from("8."),
+    //             3,
+    //             LiteralValue::Float(8.),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::FloatLiteral,
+    //             String::from("-9."),
+    //             3,
+    //             LiteralValue::Float(-9.),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::IntLiteral,
+    //             String::from("-0"),
+    //             3,
+    //             LiteralValue::Int(-0),
+    //         ),
+    //         Token::new_literal(
+    //             TokenType::FloatLiteral,
+    //             String::from("-0."),
+    //             3,
+    //             LiteralValue::Float(-0.),
+    //         ),
+    //         Token::new_valueless(TokenType::EOF, String::from(""), 3),
+    //     ];
 
-//         let mut lexer = Lexer::new(source);
-//         let expected = vec![
-//             Token::new_literal(
-//                 TokenType::IntLiteral,
-//                 String::from("99"),
-//                 1,
-//                 LiteralValue::Int(99),
-//             ),
-//             Token::new_literal(
-//                 TokenType::IntLiteral,
-//                 String::from("-6543"),
-//                 1,
-//                 LiteralValue::Int(-6543),
-//             ),
-//             Token::new_literal(
-//                 TokenType::IntLiteral,
-//                 String::from("9"),
-//                 1,
-//                 LiteralValue::Int(9),
-//             ),
-//             Token::new_literal(
-//                 TokenType::IntLiteral,
-//                 String::from("0"),
-//                 1,
-//                 LiteralValue::Int(0),
-//             ),
-//             Token::new_literal(
-//                 TokenType::IntLiteral,
-//                 String::from("-1234567"),
-//                 1,
-//                 LiteralValue::Int(-1234567),
-//             ),
-//             Token::new_literal(
-//                 TokenType::FloatLiteral,
-//                 String::from("88.8"),
-//                 2,
-//                 LiteralValue::Float(88.8),
-//             ),
-//             Token::new_literal(
-//                 TokenType::FloatLiteral,
-//                 String::from("-106.12"),
-//                 2,
-//                 LiteralValue::Float(-106.12),
-//             ),
-//             Token::new_literal(
-//                 TokenType::FloatLiteral,
-//                 String::from("34291.123456"),
-//                 3,
-//                 LiteralValue::Float(34291.123456),
-//             ),
-//             Token::new_literal(
-//                 TokenType::FloatLiteral,
-//                 String::from("-0.15325"),
-//                 3,
-//                 LiteralValue::Float(-0.15325),
-//             ),
-//             Token::new_literal(
-//                 TokenType::FloatLiteral,
-//                 String::from("100000000.3333"),
-//                 3,
-//                 LiteralValue::Float(100000000.3333),
-//             ),
-//             Token::new_literal(
-//                 TokenType::FloatLiteral,
-//                 String::from("2345654.346765"),
-//                 3,
-//                 LiteralValue::Float(2345654.346765),
-//             ),
-//             Token::new_literal(
-//                 TokenType::FloatLiteral,
-//                 String::from("-2345654.346765"),
-//                 3,
-//                 LiteralValue::Float(-2345654.346765),
-//             ),
-//             Token::new_literal(
-//                 TokenType::FloatLiteral,
-//                 String::from("8."),
-//                 3,
-//                 LiteralValue::Float(8.),
-//             ),
-//             Token::new_literal(
-//                 TokenType::FloatLiteral,
-//                 String::from("-9."),
-//                 3,
-//                 LiteralValue::Float(-9.),
-//             ),
-//             Token::new_literal(
-//                 TokenType::IntLiteral,
-//                 String::from("-0"),
-//                 3,
-//                 LiteralValue::Int(-0),
-//             ),
-//             Token::new_literal(
-//                 TokenType::FloatLiteral,
-//                 String::from("-0."),
-//                 3,
-//                 LiteralValue::Float(-0.),
-//             ),
-//             Token::new_valueless(TokenType::EOF, String::from(""), 3),
-//         ];
-
-//         assert_eq!(*lexer.get_tokens(), expected);
-//     }
-// }
+    //     assert_eq!(*lexer.get_tokens(), expected);
+    // }
+}
