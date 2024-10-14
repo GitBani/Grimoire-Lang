@@ -10,6 +10,7 @@ pub struct Lexer<'a> {
     offset: usize,
     buffer: Vec<char>,
     keyword_token_type: HashMap<String, TokenType>,
+    had_err: bool,
 }
 
 impl<'a> Lexer<'a> {
@@ -21,14 +22,20 @@ impl<'a> Lexer<'a> {
             offset: 0,
             buffer: vec![],
             keyword_token_type: Self::build_keyword_token_type_map(),
+            had_err: false,
         }
     }
 
-    pub fn get_tokens(&mut self) -> &Vec<Token> {
+    pub fn get_tokens(&mut self) -> Result<&Vec<Token>, ()> {
         if self.tokens.len() == 0 {
             self.tokenize();
         }
-        &self.tokens
+
+        if !self.had_err {
+            Ok(&self.tokens)
+        } else {
+            Err(())
+        }
     }
 
     fn tokenize(&mut self) {
@@ -193,11 +200,14 @@ impl<'a> Lexer<'a> {
 
             '~' => self.push_valueless_token(TokenType::Tilde),
 
-            _ => errors::report_syntax_error(
-                &format!("Unrecognized char: `{just_consumed}`"),
-                self.line,
-                self.offset,
-            ),
+            _ => {
+                errors::report_syntax_error(
+                    &format!("Unrecognized char: `{just_consumed}`"),
+                    self.line,
+                    self.offset,
+                );
+                self.had_err = true;
+            }
         }
 
         self.clear_buffer();
@@ -261,6 +271,7 @@ impl<'a> Lexer<'a> {
                             starting_line,
                             starting_column,
                         );
+                        self.had_err = true;
                         return;
                     }
                 }
@@ -280,6 +291,7 @@ impl<'a> Lexer<'a> {
             ));
         } else {
             errors::report_syntax_error("Unterminated string", starting_line, starting_column);
+            self.had_err = true;
         }
     }
 
@@ -288,10 +300,12 @@ impl<'a> Lexer<'a> {
             let value = self.advance(); // note: this allows the char ''' (single quote w/o escaping (lowkey kinda goated?))
             if !self.consume_if_next_char_equals('\'') {
                 errors::report_syntax_error("Unterminated char", self.line, self.offset);
+                self.had_err = true;
             }
             self.push_valued_token(TokenType::CharLiteral, LiteralValue::Char(value));
         } else {
             errors::report_syntax_error("Unterminated char", self.line, self.offset);
+            self.had_err = true;
         }
     }
 
@@ -406,11 +420,14 @@ impl<'a> Lexer<'a> {
                             terminated = true;
                         }
                         Some(c) => next_char = c,
-                        None => errors::report_syntax_error(
-                            "Unterminated multiline comment",
-                            starting_line,
-                            starting_column,
-                        ),
+                        None => {
+                            errors::report_syntax_error(
+                                "Unterminated multiline comment",
+                                starting_line,
+                                starting_column,
+                            );
+                            self.had_err = true;
+                        }
                     }
                     continue;
                 }
@@ -423,11 +440,14 @@ impl<'a> Lexer<'a> {
 
                 match self.peek_next() {
                     Some(c) => next_char = c,
-                    None => errors::report_syntax_error(
-                        "Unterminated multiline comment",
-                        starting_line,
-                        starting_column,
-                    ),
+                    None => {
+                        errors::report_syntax_error(
+                            "Unterminated multiline comment",
+                            starting_line,
+                            starting_column,
+                        );
+                        self.had_err = true;
+                    }
                 }
             }
         } else {
@@ -436,6 +456,7 @@ impl<'a> Lexer<'a> {
                 starting_line,
                 starting_column,
             );
+            self.had_err = true;
         }
     }
 
@@ -574,7 +595,7 @@ mod tests {
             Token::new_valueless(TokenType::EOF, String::from(""), 4, 11),
         ];
 
-        test_utils::assert_vec_eq(lexer.get_tokens(), &expected);
+        test_utils::assert_vec_eq(lexer.get_tokens().unwrap(), &expected);
     }
 
     #[test]
@@ -690,7 +711,7 @@ mod tests {
             Token::new_valueless(TokenType::EOF, String::from(""), 7, 9),
         ];
 
-        test_utils::assert_vec_eq(lexer.get_tokens(), &expected);
+        test_utils::assert_vec_eq(lexer.get_tokens().unwrap(), &expected);
     }
 
     #[test]
@@ -763,7 +784,7 @@ mod tests {
             Token::new_valueless(TokenType::EOF, String::from(""), 13, 14),
         ];
 
-        test_utils::assert_vec_eq(lexer.get_tokens(), &expected);
+        test_utils::assert_vec_eq(lexer.get_tokens().unwrap(), &expected);
     }
 
     #[test]
@@ -889,6 +910,6 @@ mod tests {
             Token::new_valueless(TokenType::EOF, String::from(""), 3, 90),
         ];
 
-        test_utils::assert_vec_eq(lexer.get_tokens(), &expected);
+        test_utils::assert_vec_eq(lexer.get_tokens().unwrap(), &expected);
     }
 }

@@ -4,6 +4,7 @@ pub mod test_utils;
 
 // compiler phases
 pub mod lexer;
+pub mod parser;
 
 // types / data structures
 pub mod token;
